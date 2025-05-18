@@ -85,7 +85,7 @@ while True:
                     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
                 # ある程度の大きさの円（ボールらしいサイズ）のみを処理
-                if center is not None and radius > 10: # 半径の閾値は適宜調整
+                if center is not None and radius > 8: # 半径の閾値は適宜調整
                     ball_count += 1
                     # ボール名を「色_連番」の形式で生成 (例: red_1, blue_2)
                     ball_name = f"{color_name}_{ball_count}"
@@ -110,7 +110,7 @@ while True:
     # 結果を表示
     cv2.imshow('Ball Detection Result', frame) # ウィンドウタイトルを変更
     # 各色のマスクを確認したい場合は、下のコメントアウトを解除してください
-    # cv2.imshow(f'{color_name} Mask', mask)
+    cv2.imshow(f'{color_name} Mask', mask)
 
     # 'q'キーが押されたらループを終了
     if cv2.waitKey(1) & 0xFF == ord('q'):
