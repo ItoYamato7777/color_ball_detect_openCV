@@ -12,10 +12,10 @@ world_origin_image = 'world_origin_01.jpg' # 実際のファイル名に合わ�
 
 # チェスボードの内側のコーナーの数 (前回のキャリブレーションと同じ設定)
 nx = 7
-ny = 5
+ny = 6
 
 # チェスボードの正方形の一辺の実際のサイズ (前回のキャリブレーションと同じ単位)
-square_size = 20 # 例: 20 mm
+square_size = 25 # 例: 25 mm
 
 # 世界座標系を定義するための外部パラメータを保存するファイル名
 world_transform_file = 'world_transform.npz'

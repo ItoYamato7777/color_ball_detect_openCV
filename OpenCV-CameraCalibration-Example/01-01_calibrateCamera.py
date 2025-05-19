@@ -14,8 +14,8 @@ def get_args():
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=360)
 
-    parser.add_argument("--square_len", type=float, default=23.0)
-    parser.add_argument("--grid_size", type=str, default="10,7")
+    parser.add_argument("--square_len", type=float, default=25.0)
+    parser.add_argument("--grid_size", type=str, default="7,6")
 
     parser.add_argument("--k_filename", type=str, default="K.csv")
     parser.add_argument("--d_filename", type=str, default="d.csv")
