@@ -157,6 +157,7 @@ while True:
                     img_confirm = frame.copy()
                     cv2.drawChessboardCorners(img_confirm, (nx, ny), corners_subpix, ret_corners)
                     # 軸描画確認 (計算した外部パラメータを使用)
+                    #TODO 外部パラメータではなくチェスコーナーを使用する
                     cv2.drawFrameAxes(img_confirm, mtx, dist, rvec_w2c, tvec_w2c, axis_length, thickness=3)
                     cv2.imshow('World Frame Set Confirmation', img_confirm)
                     print("設定された世界座標軸の確認ウィンドウを表示しました。このウィンドウを閉じると、メインのカメラ映像に戻ります。")
