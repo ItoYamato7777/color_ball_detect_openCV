@@ -8,7 +8,7 @@ import numpy as np
 color_ranges = {
     'red': [([0, 100, 100], [10, 255, 255]), ([160, 100, 100], [180, 255, 255])],
     'blue': [([100, 150, 0], [140, 255, 255])],   # 例: 青色の範囲 (調整してください)
-    'green': [([40, 70, 0], [80, 255, 255])]     # 例: 緑色の範囲 (調整してください)
+    'green': [([30, 64, 64], [90, 255, 255])]     # 修正案: 緑色の範囲 (明度(V)の下限を64に上げました)
 }
 
 # 検出したボールを描画する際の色を指定します (BGR形式)。
@@ -62,6 +62,8 @@ while True:
         # OpenCV 3.xと4.xで戻り値の形式が異なる場合があるため、検出された輪郭だけを取得
         contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        cv2.imshow(f'{color_name} Mask', mask)
+
         # 検出されたボールの数を色ごとにカウントするためのカウンター
         ball_count = 0
 
@@ -85,7 +87,7 @@ while True:
                     center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
                 # ある程度の大きさの円（ボールらしいサイズ）のみを処理
-                if center is not None and radius > 8: # 半径の閾値は適宜調整
+                if center is not None and radius > 15: # 半径の閾値は適宜調整
                     ball_count += 1
                     # ボール名を「色_連番」の形式で生成 (例: red_1, blue_2)
                     ball_name = f"{color_name}_{ball_count}"
@@ -110,7 +112,7 @@ while True:
     # 結果を表示
     cv2.imshow('Ball Detection Result', frame) # ウィンドウタイトルを変更
     # 各色のマスクを確認したい場合は、下のコメントアウトを解除してください
-    cv2.imshow(f'{color_name} Mask', mask)
+    # cv2.imshow(f'{color_name} Mask', mask)
 
     # 'q'キーが押されたらループを終了
     if cv2.waitKey(1) & 0xFF == ord('q'):
