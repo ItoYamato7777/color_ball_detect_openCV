@@ -11,8 +11,8 @@ aruco_params = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
 # マーカーの実際のサイズ（一辺の長さ、単位はメートルやセンチメートルなど任意だが、後述のtvecの単位に影響）
-# 例: 5センチメートル = 0.05メートル
-marker_length = 0.05
+# 8センチメートル = 0.08メートル
+marker_length = 0.08
 
 # カメラの内部パラメータ (カメラキャリブレーションで取得)
 # *** 注意: ここはダミーの値です。必ずご自身のカメラでキャリブレーションして取得した値に置き換えてください。 ***
