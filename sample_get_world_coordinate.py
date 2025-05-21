@@ -8,7 +8,6 @@ import time
 calibration_file = 'camera_calibration.npz'
 
 # チェスボードの内側のコーナーの数 (キャリブレーション時と同じ設定)
-# 例: 8x7のチェスボードの場合、内側は 7x6 -> nx=7, ny=6
 nx = 7
 ny = 6
 
@@ -37,21 +36,9 @@ except Exception as e:
 
 
 print("カメラ内部パラメータと歪み係数を読み込みました。")
-# print("カメラ行列 (mtx):\n", mtx)
-# print("\n歪み係数 (dist):\n", dist)
-# print("\n画像サイズ:", img_size)
 
 
 # --- 世界座標系を定義するための3次元点の準備 ---
-# この3次元座標リストが、定義する世界座標系におけるチェスボードコーナーの位置となります
-# チェスボードの左上隅の内側のコーナーを原点 (0,0,0) とし、
-# X軸が右へ、Y軸が下へ、Z軸がチェスボード平面から出る向きとなるように定義
-# findChessboardCornersは通常、左上から右へ、その後下の行へという順序でコーナーを検出します。
-# np.mgrid[0:ny, 0:nx].T.reshape(-1, 2) は、
-# yが外側ループ、xが内側ループの組み合わせを生成し、転置後に(x,y)ペアのリストとして整形します。
-# これがfindChessboardCornersの返す順序と一致するため、このobjp定義で
-# 検出されたコーナーに対応する世界座標が正しく紐づけられます。
-# 世界座標系のXY平面はチェスボード平面、Z=0がチェスボード上になります。
 objp = np.zeros((ny*nx, 3), np.float32)
 objp[:, :2] = np.mgrid[0:ny, 0:nx].T.reshape(-1, 2) * square_size
 
@@ -163,7 +150,6 @@ while True:
                     print("設定された世界座標軸の確認ウィンドウを表示しました。このウィンドウを閉じると、メインのカメラ映像に戻ります。")
                     cv2.waitKey(0) # 確認表示の間、キー入力を待つ
                     cv2.destroyWindow('World Frame Set Confirmation') # 確認ウィンドウを閉じる
-
 
                 else:
                     print("solvePnPが失敗しました。検出されたコーナーが不適切かもしれません。")
