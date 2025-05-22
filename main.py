@@ -11,17 +11,17 @@ from module.ball_world_translator import BallWorldTranslator
 # --- 定数定義 (各スクリプトから集約) ---
 
 # カメラ内部パラメータと歪み係数 (キャリブレーション済みとされる値)
-MTX_CALIB = np.array([[667.78589722327888,0.00000000000000,303.04460463605631],
-                      [0.00000000000000,666.67910084463063,189.24609815186295],
+MTX_CALIB = np.array([[826.13725388229750,0.00000000000000,283.41487737448006],
+                      [0.00000000000000,827.27756538026267,216.17748304394581],
                       [0.00000000000000,0.00000000000000,1.00000000000000]], dtype=np.float64)
 
-DIST_CALIB = np.array([-0.09306442948031,0.43190686558612,0.00774182962887,-0.00843446225062,-0.46640650833319])
+DIST_CALIB = np.array([-0.25266220406939,3.21743761465987,-0.00442676354045,-0.01670514589555,-9.40231611478410])
 
 # チェスボード設定
 CHESSBOARD_NX = 7  # チェスボードの内側のコーナーの数 (X方向)
 CHESSBOARD_NY = 6  # チェスボードの内側のコーナーの数 (Y方向)
 CHESSBOARD_SQUARE_SIZE = 25  # チェスボードの正方形の一辺の実際のサイズ (mm)
-WORLD_AXIS_LENGTH = CHESSBOARD_SQUARE_SIZE * 3 # 描画する座標軸の長さ
+WORLD_AXIS_LENGTH = CHESSBOARD_SQUARE_SIZE # 描画する座標軸の長さ
 
 # solvePnPに使用するコーナー検出精度向上のための基準
 PNP_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -53,7 +53,7 @@ class VisionSystem:
     カメラ管理、世界座標系設定、ArUcoマーカー検出、カラーボール検出、
     およびボールの世界座標変換の機能を統合し、全体の処理フローを管理するクラス。
     """
-    def __init__(self, camera_id=0, frame_width=1280, frame_height=960):
+    def __init__(self, camera_id=0, frame_width=640, frame_height=480):
         """
         VisionSystemを初期化します。各機能モジュールをセットアップします。
 
@@ -98,14 +98,14 @@ class VisionSystem:
             min_contour_area=MIN_CONTOUR_AREA_BALL,
             min_radius=MIN_BALL_RADIUS
         )
-        
+
         # BallWorldTranslator のインスタンスを生成
         self.ball_world_translator = BallWorldTranslator(
             mtx=self.mtx_calib,
             dist=self.dist_calib,
             ball_radius_world=BALL_RADIUS_WORLD_MM # mm単位で指定
         )
-        
+
         print("VisionSystem: 全てのモジュールの初期化が完了しました。")
 
     def _handle_key_input(self, key, current_frame_for_world_setup):
@@ -141,21 +141,22 @@ class VisionSystem:
         """
         processed_frame = frame.copy() # 毎フレームコピーして処理
 
-        # 1. 世界座標系の軸を描画
-        processed_frame = self.world_coordinate_system.draw_world_axes(processed_frame)
+        # 1. カラーボールを検出・描画し、2D画像上のボール情報を取得
+        processed_frame, detected_balls_info_2d = self.color_ball_detector.detect_and_draw_balls(processed_frame)
 
         # 2. ArUcoマーカーを検出・描画
         processed_frame = self.aruco_detector.detect_and_draw_markers(processed_frame)
 
-        # 3. カラーボールを検出・描画し、2D画像上のボール情報を取得
-        processed_frame, detected_balls_info_2d = self.color_ball_detector.detect_and_draw_balls(processed_frame)
-        
+        # 3. 世界座標系の軸を描画
+        processed_frame = self.world_coordinate_system.draw_world_axes(processed_frame)
+
+
         # 4. ボールの世界座標を計算・描画
         detected_balls_info_with_world = [] # 世界座標情報を追加するためのリスト
         if self.world_coordinate_system.world_frame_established:
             rvec_w2c = self.world_coordinate_system.rvec_w2c
             tvec_w2c = self.world_coordinate_system.tvec_w2c
-            
+
             if rvec_w2c is not None and tvec_w2c is not None:
                 for ball_2d_info in detected_balls_info_2d:
                     center_uv = ball_2d_info.get('center_uv')
@@ -169,7 +170,7 @@ class VisionSystem:
                         current_ball_info_with_world = ball_2d_info.copy()
                         current_ball_info_with_world['world_xyz'] = world_xyz
                         detected_balls_info_with_world.append(current_ball_info_with_world)
-                        
+
                         # ターミナルにも出力 (デバッグ用)
                         if world_xyz is not None:
                             print(f"Ball: {ball_2d_info.get('name')}, World Coords (X,Y,Z): ({world_xyz[0]:.1f}, {world_xyz[1]:.1f}, {world_xyz[2]:.1f}) mm")
@@ -190,10 +191,10 @@ class VisionSystem:
 
         # 計算された世界座標をフレームに描画
         processed_frame = self.ball_world_translator.draw_world_coordinates_on_frame(
-            processed_frame, 
+            processed_frame,
             detected_balls_info_with_world
         )
-        
+
         return processed_frame
 
     def run(self):

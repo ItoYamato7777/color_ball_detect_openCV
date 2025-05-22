@@ -12,7 +12,7 @@ def get_args():
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--file", type=str, default=None)
     parser.add_argument("--width", type=int, default=640)
-    parser.add_argument("--height", type=int, default=360)
+    parser.add_argument("--height", type=int, default=480)
 
     parser.add_argument("--k_new_param", type=float, default=1.0)
 
