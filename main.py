@@ -6,6 +6,7 @@ from module.camera_manager import CameraManager
 from module.world_coordinate_system import WorldCoordinateSystem
 from module.color_ball_detector import ColorBallDetector
 from module.aruco_detector import ArucoDetector
+from module.ball_world_translator import BallWorldTranslator
 
 # --- 定数定義 (各スクリプトから集約) ---
 
@@ -43,10 +44,14 @@ MORPH_KERNEL = np.ones((5, 5), np.uint8) # 形態学的処理のカーネル
 MIN_CONTOUR_AREA_BALL = 100 # ボール検出時の最小輪郭面積
 MIN_BALL_RADIUS = 15 # ボール検出時の最小半径
 
+# ボールの物理的な半径 (mm単位)
+BALL_RADIUS_WORLD_MM = 55.0
+
+
 class VisionSystem:
     """
-    カメラ管理、世界座標系設定、ArUcoマーカー検出、カラーボール検出の機能を統合し、
-    全体の処理フローを管理するクラス。
+    カメラ管理、世界座標系設定、ArUcoマーカー検出、カラーボール検出、
+    およびボールの世界座標変換の機能を統合し、全体の処理フローを管理するクラス。
     """
     def __init__(self, camera_id=0, frame_width=1280, frame_height=960):
         """
@@ -93,6 +98,14 @@ class VisionSystem:
             min_contour_area=MIN_CONTOUR_AREA_BALL,
             min_radius=MIN_BALL_RADIUS
         )
+        
+        # BallWorldTranslator のインスタンスを生成
+        self.ball_world_translator = BallWorldTranslator(
+            mtx=self.mtx_calib,
+            dist=self.dist_calib,
+            ball_radius_world=BALL_RADIUS_WORLD_MM # mm単位で指定
+        )
+        
         print("VisionSystem: 全てのモジュールの初期化が完了しました。")
 
     def _handle_key_input(self, key, current_frame_for_world_setup):
@@ -126,15 +139,61 @@ class VisionSystem:
         Returns:
             numpy.ndarray: 全ての描画処理が適用されたフレーム。
         """
+        processed_frame = frame.copy() # 毎フレームコピーして処理
+
         # 1. 世界座標系の軸を描画
-        processed_frame = self.world_coordinate_system.draw_world_axes(frame)
+        processed_frame = self.world_coordinate_system.draw_world_axes(processed_frame)
 
         # 2. ArUcoマーカーを検出・描画
         processed_frame = self.aruco_detector.detect_and_draw_markers(processed_frame)
 
-        # 3. カラーボールを検出・描画
-        processed_frame = self.color_ball_detector.detect_and_draw_balls(processed_frame)
+        # 3. カラーボールを検出・描画し、2D画像上のボール情報を取得
+        processed_frame, detected_balls_info_2d = self.color_ball_detector.detect_and_draw_balls(processed_frame)
+        
+        # 4. ボールの世界座標を計算・描画
+        detected_balls_info_with_world = [] # 世界座標情報を追加するためのリスト
+        if self.world_coordinate_system.world_frame_established:
+            rvec_w2c = self.world_coordinate_system.rvec_w2c
+            tvec_w2c = self.world_coordinate_system.tvec_w2c
+            
+            if rvec_w2c is not None and tvec_w2c is not None:
+                for ball_2d_info in detected_balls_info_2d:
+                    center_uv = ball_2d_info.get('center_uv')
+                    if center_uv:
+                        world_xyz = self.ball_world_translator.calculate_world_coords(
+                            ball_center_uv=center_uv,
+                            rvec_w2c=rvec_w2c,
+                            tvec_w2c=tvec_w2c
+                        )
+                        # 元の情報に世界座標を追加
+                        current_ball_info_with_world = ball_2d_info.copy()
+                        current_ball_info_with_world['world_xyz'] = world_xyz
+                        detected_balls_info_with_world.append(current_ball_info_with_world)
+                        
+                        # ターミナルにも出力 (デバッグ用)
+                        if world_xyz is not None:
+                            print(f"Ball: {ball_2d_info.get('name')}, World Coords (X,Y,Z): ({world_xyz[0]:.1f}, {world_xyz[1]:.1f}, {world_xyz[2]:.1f}) mm")
+                        else:
+                            print(f"Ball: {ball_2d_info.get('name')}, World Coords: Calculation failed or not attempted.")
+            else:
+                # rvec_w2c や tvec_w2c が None の場合は、各ボール情報をそのままコピー
+                for ball_2d_info in detected_balls_info_2d:
+                    current_ball_info_with_world = ball_2d_info.copy()
+                    current_ball_info_with_world['world_xyz'] = None # 計算できなかったことを示す
+                    detected_balls_info_with_world.append(current_ball_info_with_world)
+        else:
+            # 世界座標系が未設定の場合は、各ボール情報をそのままコピー
+            for ball_2d_info in detected_balls_info_2d:
+                current_ball_info_with_world = ball_2d_info.copy()
+                current_ball_info_with_world['world_xyz'] = None # 計算できなかったことを示す
+                detected_balls_info_with_world.append(current_ball_info_with_world)
 
+        # 計算された世界座標をフレームに描画
+        processed_frame = self.ball_world_translator.draw_world_coordinates_on_frame(
+            processed_frame, 
+            detected_balls_info_with_world
+        )
+        
         return processed_frame
 
     def run(self):
@@ -147,25 +206,21 @@ class VisionSystem:
 
         print("\nカメラ映像を表示中...'1'キーで世界座標系を設定。'q'キーで終了。")
         print(f"世界座標系設定用チェスボード: 内側コーナー {CHESSBOARD_NX}x{CHESSBOARD_NY}, 正方形サイズ {CHESSBOARD_SQUARE_SIZE}mm")
+        print(f"ボール半径 (World): {BALL_RADIUS_WORLD_MM}mm (Z座標はこれのマイナス値になります)")
+
 
         main_window_name = 'Vision System Output - Press 1 to Set World, q to Quit'
         cv2.namedWindow(main_window_name, cv2.WINDOW_AUTOSIZE)
-        # ColorBallDetectorが表示するマスクウィンドウ用に、あらかじめウィンドウを定義しておくことも可能
-        # for color_name in COLOR_RANGES_HSV.keys():
-        #     cv2.namedWindow(f'{color_name} Mask', cv2.WINDOW_AUTOSIZE)
-
 
         while True:
             ret, frame = self.camera_manager.read_frame()
             if not ret:
                 print("エラー: フレームの読み込みに失敗しました。1秒待機します。")
-                time.sleep(1) # 元のスクリプトにあったフレーム読み込み失敗時のウェイト
+                time.sleep(1)
                 continue
 
-            display_frame = frame.copy() # 処理用にフレームをコピー
-
-            # 主要な処理を実行
-            display_frame = self._process_frame(display_frame)
+            # display_frame = frame.copy() # _process_frame の中でコピーするので不要かも
+            display_frame = self._process_frame(frame) # 元のフレームを渡す
 
             cv2.imshow(main_window_name, display_frame)
 
