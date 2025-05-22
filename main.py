@@ -9,7 +9,6 @@ from module.aruco_detector import ArucoDetector
 
 # --- 定数定義 (各スクリプトから集約) ---
 
-# sample_get_world_coordinate.py から
 # カメラ内部パラメータと歪み係数 (キャリブレーション済みとされる値)
 MTX_CALIB = np.array([[667.78589722327888,0.00000000000000,303.04460463605631],
                       [0.00000000000000,666.67910084463063,189.24609815186295],
@@ -17,20 +16,19 @@ MTX_CALIB = np.array([[667.78589722327888,0.00000000000000,303.04460463605631],
 
 DIST_CALIB = np.array([-0.09306442948031,0.43190686558612,0.00774182962887,-0.00843446225062,-0.46640650833319])
 
-# チェスボード設定 (sample_get_world_coordinate.py から)
+# チェスボード設定
 CHESSBOARD_NX = 7  # チェスボードの内側のコーナーの数 (X方向)
 CHESSBOARD_NY = 6  # チェスボードの内側のコーナーの数 (Y方向)
 CHESSBOARD_SQUARE_SIZE = 25  # チェスボードの正方形の一辺の実際のサイズ (mm)
 WORLD_AXIS_LENGTH = CHESSBOARD_SQUARE_SIZE * 3 # 描画する座標軸の長さ
 
-# solvePnPに使用するコーナー検出精度向上のための基準 (sample_get_world_coordinate.py から)
+# solvePnPに使用するコーナー検出精度向上のための基準
 PNP_CRITERIA = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 ARUCO_DICT_TYPE = cv2.aruco.DICT_4X4_50 # 使用するArUcoマーカーの辞書
 ARUCO_MARKER_LENGTH = 0.08  # マーカーの実際のサイズ (メートル単位)
 ARUCO_AXIS_LENGTH = 0.1     # ArUcoマーカーに描画する座標軸の長さ (メートル単位)
 
-# sample_color_ball_detect.py から
 COLOR_RANGES_HSV = {
     'red': [([0, 100, 100], [10, 255, 255]), ([160, 100, 100], [180, 255, 255])],
     'blue': [([100, 150, 0], [140, 255, 255])],
@@ -64,7 +62,7 @@ class VisionSystem:
             self.camera_manager = CameraManager(camera_id, frame_width, frame_height)
         except IOError as e:
             print(f"エラー: VisionSystemの初期化に失敗しました。{e}")
-            raise # エラーを再送出してプログラムを終了させる
+            raise
 
         # キャリブレーション済みパラメータを使用
         self.mtx_calib = MTX_CALIB
@@ -85,7 +83,7 @@ class VisionSystem:
             dist_coeffs=self.dist_calib,
             aruco_dict_type=ARUCO_DICT_TYPE,
             marker_length=ARUCO_MARKER_LENGTH,
-            axis_length=ARUCO_AXIS_LENGTH # この名前はArucoDetector内で axis_length_on_marker に変更
+            axis_length=ARUCO_AXIS_LENGTH
         )
 
         self.color_ball_detector = ColorBallDetector(
@@ -110,13 +108,13 @@ class VisionSystem:
         """
         if key == ord('q'):
             print("'q'キーが押されました。プログラムを終了します。")
-            return True  # 終了シグナル
+            return True
 
         if key == ord('1'):
             print("\n'1'キーが押されました。世界座標系の設定を試みます...")
             self.world_coordinate_system.establish_world_frame(current_frame_for_world_setup)
 
-        return False # 継続シグナル
+        return False
 
     def _process_frame(self, frame):
         """
@@ -128,7 +126,7 @@ class VisionSystem:
         Returns:
             numpy.ndarray: 全ての描画処理が適用されたフレーム。
         """
-        # 1. 世界座標系の軸を描画 (設定されていれば)
+        # 1. 世界座標系の軸を描画
         processed_frame = self.world_coordinate_system.draw_world_axes(frame)
 
         # 2. ArUcoマーカーを検出・描画
