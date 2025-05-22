@@ -54,8 +54,8 @@ class ColorBallDetector:
             # マスクから輪郭を検出
             contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE) #
 
-            # デバッグ用にマスク画像を表示 (元のスクリプトに合わせて)
-            cv2.imshow(f'{color_name} Mask', mask) #
+            # デバッグ用にマスク画像を表示
+            cv2.imshow(f'{color_name} Mask', mask)
 
             ball_count = 0 #
             if len(contours) > 0:
