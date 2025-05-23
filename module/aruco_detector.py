@@ -4,6 +4,7 @@ import cv2
 class ArucoDetector:
     """
     ArUcoマーカーを検出し、そのIDと姿勢（カメラ座標系における位置と向き）を推定・描画するクラス。
+    検出したマーカーの情報をリストとして返す機能を追加。
     """
     def __init__(self, camera_matrix, dist_coeffs, aruco_dict_type, marker_length, axis_length):
         """
@@ -19,26 +20,31 @@ class ArucoDetector:
         self.camera_matrix = camera_matrix
         self.dist_coeffs = dist_coeffs
         self.marker_length = marker_length
-        self.axis_length_on_marker = axis_length # Renamed to avoid conflict with world_axis_length
+        self.axis_length_on_marker = axis_length 
 
-        self.aruco_dict = cv2.aruco.getPredefinedDictionary(aruco_dict_type) #
-        self.aruco_params = cv2.aruco.DetectorParameters() #
-        self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params) #
+        self.aruco_dict = cv2.aruco.getPredefinedDictionary(aruco_dict_type) 
+        self.aruco_params = cv2.aruco.DetectorParameters() 
+        self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params) 
         print("ArucoDetector: 初期化完了。")
 
     def detect_and_draw_markers(self, frame):
         """
         指定されたフレームからArUcoマーカーを検出し、ID、枠、姿勢推定に基づく座標軸、
-        および情報を描画します。
+        および情報を描画します。検出されたマーカーの情報も返します。
 
         Args:
             frame (numpy.ndarray): 処理対象のカメラフレーム。
 
         Returns:
-            numpy.ndarray: マーカー情報が描画されたフレーム。
+            tuple: (numpy.ndarray, list)
+                - マーカー情報が描画されたフレーム。
+                - 検出された各マーカーの情報（ID, rvec_m2c, tvec_m2c, center_uv）を含む辞書のリスト。
+                  例: [{'id': marker_id, 'rvec_m2c': rvec, 'tvec_m2c': tvec, 'center_uv': (x,y)}, ...]
         """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #
-        corners, ids, rejected = self.detector.detectMarkers(gray) #
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
+        corners, ids, rejected = self.detector.detectMarkers(gray) 
+        
+        detected_markers_info = []
 
         if ids is not None:
             # 検出されたマーカーの姿勢を推定
@@ -47,33 +53,38 @@ class ArucoDetector:
                 corners, self.marker_length, self.camera_matrix, self.dist_coeffs)
 
             for i, marker_id_array in enumerate(ids):
-                marker_id = marker_id_array[0] # IDは numpy array [id_val] で返ってくるため
+                marker_id = marker_id_array[0] 
+                rvec_m2c = rvecs[i] # マーカーからカメラへの回転ベクトル
+                tvec_m2c = tvecs[i] # マーカーからカメラへの並進ベクトル
 
                 # マーカーの枠とIDを描画
-                cv2.aruco.drawDetectedMarkers(frame, [corners[i]], np.array([[marker_id]])) #
+                cv2.aruco.drawDetectedMarkers(frame, [corners[i]], np.array([[marker_id]])) 
 
                 # 姿勢推定の結果を使って座標軸を描画
-                cv2.drawFrameAxes(frame, self.camera_matrix, self.dist_coeffs, #
-                                  rvecs[i], tvecs[i], self.axis_length_on_marker)
+                cv2.drawFrameAxes(frame, self.camera_matrix, self.dist_coeffs, 
+                                  rvec_m2c, tvec_m2c, self.axis_length_on_marker)
 
-                # マーカーの中心座標を計算 (表示用)
-                corners_of_marker = corners[i][0] #
-                center_x = int(np.mean(corners_of_marker[:, 0])) #
-                center_y = int(np.mean(corners_of_marker[:, 1])) #
-                center = (center_x, center_y) #
+                corners_of_marker = corners[i][0] 
+                center_x = int(np.mean(corners_of_marker[:, 0])) 
+                center_y = int(np.mean(corners_of_marker[:, 1])) 
+                center_uv = (center_x, center_y) 
 
-                cv2.circle(frame, center, 5, (0, 0, 255), -1)  # マーカー中心に赤点
+                cv2.circle(frame, center_uv, 5, (0, 0, 255), -1)  # マーカー中心に赤点
 
-                # マーカーIDと位置情報をフレームに表示
-                text_id = f"ID: {marker_id}" #
-                # 並進ベクトル tvec は [X, Y, Z] の形式 (カメラ原点、marker_length と同じ単位)
-                text_pos = f"Pos: X={tvecs[i][0][0]:.2f}, Y={tvecs[i][0][1]:.2f}, Z={tvecs[i][0][2]:.2f}" #
+                text_id_cam = f"ID:{marker_id} (Cam)" 
+                text_pos_cam = f"PosC:({tvec_m2c[0][0]:.2f},{tvec_m2c[0][1]:.2f},{tvec_m2c[0][2]:.2f})" 
 
-                cv2.putText(frame, text_id, (center_x - 50, center_y - 30), #
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) # 緑色
-                cv2.putText(frame, text_pos, (center_x - 50, center_y - 10), #
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2) # 黄色
+                cv2.putText(frame, text_id_cam, (center_x - 60, center_y - 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) 
+                cv2.putText(frame, text_pos_cam, (center_x - 60, center_y - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1) 
 
-                # ターミナルに情報を出力
-                # print(f"検出: ArUco ID={marker_id}, 回転ベクトル(rvec): {rvecs[i].flatten()}, 並進ベクトル(tvec): {tvecs[i].flatten()}")
-        return frame
+                # 検出情報をリストに追加
+                detected_markers_info.append({
+                    'id': marker_id,
+                    'rvec_m2c': rvec_m2c,
+                    'tvec_m2c': tvec_m2c,
+                    'center_uv': center_uv
+                })
+        
+        return frame, detected_markers_info
