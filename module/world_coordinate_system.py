@@ -47,7 +47,6 @@ class WorldCoordinateSystem:
     def _draw_axes_on_image(self, img, imgpts):
         """
         画像に3D軸を描画するプライベートヘルパーメソッド。
-        元の sample_get_world_coordinate.py の draw_axes 関数をクラスメソッド化。
 
         Args:
             img (numpy.ndarray): 描画対象の画像。
@@ -58,7 +57,6 @@ class WorldCoordinateSystem:
         # X軸 (元コメント: 赤, コード: 青)
         # Y軸 (元コメント: 緑, コード: 緑)
         # Z軸 (元コメント: 青, コード: 赤)
-        # ここでは元のコードのcv2.lineの色指定を尊重します。
         origin = tuple(map(int, imgpts[0].ravel())) #
         x_axis_end = tuple(map(int, imgpts[1].ravel())) #
         y_axis_end = tuple(map(int, imgpts[2].ravel())) #
