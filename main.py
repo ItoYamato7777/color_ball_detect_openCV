@@ -281,7 +281,7 @@ class VisionSystem:
 
 if __name__ == "__main__": #
     try:
-        vision_system = VisionSystem(camera_id=0, frame_width=640, frame_height=480) # から frame_width, frame_height を変更
+        vision_system = VisionSystem(camera_id=1, frame_width=640, frame_height=480) # から frame_width, frame_height を変更
         vision_system.run() #
     except IOError as e:
         print(f"プログラムの実行中にカメラ関連のエラーが発生しました: {e}") #

@@ -91,7 +91,7 @@ class ArucoWorldTranslator:
                 # これを世界座標系で表現すると R_w2m @ (0,0,1)^T = R_w2m の3列目
                 marker_z_axis_in_world = world_rot_mat[:, 2]
                 orientation_text = f"WZax:({marker_z_axis_in_world[0]:.2f},{marker_z_axis_in_world[1]:.2f},{marker_z_axis_in_world[2]:.2f})"
-                cv2.putText(frame, orientation_text, (text_x - 70, text_y),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 100, 0), 1, cv2.LINE_AA) # Blue-ish
+                # cv2.putText(frame, orientation_text, (text_x - 70, text_y),
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 100, 0), 1, cv2.LINE_AA) # Blue-ish
 
         return frame

@@ -79,9 +79,9 @@ class ColorBallDetector:
                         cv2.circle(frame, (int(x_img), int(y_img)), int(radius_px), draw_color, 2)
                         cv2.circle(frame, center_uv, 5, draw_color, -1) # モーメントから計算した中心
 
-                        text = f"{ball_name} u:{center_uv[0]}, v:{center_uv[1]}"
-                        cv2.putText(frame, text, (center_uv[0] - 50, center_uv[1] - 20),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)
+                        # text = f"{ball_name} u:{center_uv[0]}, v:{center_uv[1]}"
+                        # cv2.putText(frame, text, (center_uv[0] - 50, center_uv[1] - 20),
+                        #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, draw_color, 2)
                         
                         # 検出情報をリストに追加
                         detected_balls_info.append({

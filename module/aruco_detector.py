@@ -74,10 +74,10 @@ class ArucoDetector:
                 text_id_cam = f"ID:{marker_id} (Cam)" 
                 text_pos_cam = f"PosC:({tvec_m2c[0][0]:.2f},{tvec_m2c[0][1]:.2f},{tvec_m2c[0][2]:.2f})" 
 
-                cv2.putText(frame, text_id_cam, (center_x - 60, center_y - 30), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) 
-                cv2.putText(frame, text_pos_cam, (center_x - 60, center_y - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1) 
+                # cv2.putText(frame, text_id_cam, (center_x - 60, center_y - 30), 
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2) 
+                # cv2.putText(frame, text_pos_cam, (center_x - 60, center_y - 10), 
+                #             cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 255), 1) 
 
                 # 検出情報をリストに追加
                 detected_markers_info.append({
