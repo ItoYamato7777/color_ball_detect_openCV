@@ -62,7 +62,7 @@ class VisionSystem:
     カメラ管理、世界座標系設定、ArUcoマーカー検出、カラーボール検出、
     およびボールの世界座標変換の機能を統合し、全体の処理フローを管理するクラス。
     """
-    def __init__(self, camera_id=0, frame_width=640, frame_height=480):
+    def __init__(self, camera_id=1, frame_width=640, frame_height=480):
         """
         VisionSystemを初期化します。各機能モジュールをセットアップします。
 
