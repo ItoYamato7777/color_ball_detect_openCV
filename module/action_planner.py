@@ -64,7 +64,10 @@ class ActionPlanner:
         if not self.robot_pose or not self.balls_info:
             return None
 
-        robot_pos = self.robot_pose['world_position']
+        robot_pos_vec = self.robot_pose['world_position']
+        robot_x = robot_pos_vec[0, 0]
+        robot_y = robot_pos_vec[1, 0]
+
         nearest_ball = None
         min_dist = float('inf')
 
@@ -73,7 +76,7 @@ class ActionPlanner:
                 continue
             
             ball_pos = ball['world_xyz']
-            dist = math.sqrt((robot_pos[0] - ball_pos[0])**2 + (robot_pos[1] - ball_pos[1])**2)
+            dist = math.sqrt((robot_x - ball_pos[0])**2 + (robot_y - ball_pos[1])**2)
             
             if dist < min_dist:
                 min_dist = dist
@@ -90,14 +93,14 @@ class ActionPlanner:
             # print("Planner: Robot not found. Waiting...")
             return
 
-        current_robot_pos = self.robot_pose['world_position']
+        current_robot_pos_vec = self.robot_pose['world_position']
 
         # --- ステートマシン ---
         if self.state == self.State.SEARCHING_BALL:
             print("State: SEARCHING_BALL")
             self.target_ball = self._find_nearest_ball()
             if self.target_ball:
-                print(f"  -> Found target ball: {self.target_ball['name']} at {self.target_ball['world_xyz']}")
+                print(f"  -> Found target ball: {self.target_ball['name']} at ({self.target_ball['world_xyz'][0]:.1f}, {self.target_ball['world_xyz'][1]:.1f})")
                 self.state = self.State.MOVING_TO_BALL_Y
             else:
                 print("  -> No balls found. Waiting.")
@@ -105,8 +108,10 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_BALL_Y:
             print("State: MOVING_TO_BALL_Y")
-            target_y = self.target_ball['world_xyz'][1] - self.PICKUP_OFFSET_Y # オフセット分だけ手前を目標に
-            delta_y = target_y - current_robot_pos[1]
+            robot_y = current_robot_pos_vec[1, 0]
+            target_y_ball = self.target_ball['world_xyz'][1]
+            target_y = target_y_ball - self.PICKUP_OFFSET_Y
+            delta_y = target_y - robot_y
             
             if abs(delta_y) > self.POSITION_TOLERANCE:
                 direction = "up" if delta_y > 0 else "down"
@@ -117,8 +122,9 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_BALL_X:
             print("State: MOVING_TO_BALL_X")
+            robot_x = current_robot_pos_vec[0, 0]
             target_x = self.target_ball['world_xyz'][0]
-            delta_x = target_x - current_robot_pos[0]
+            delta_x = target_x - robot_x
 
             if abs(delta_x) > self.POSITION_TOLERANCE:
                 direction = "right" if delta_x > 0 else "left"
@@ -133,8 +139,7 @@ class ActionPlanner:
             self.balls_collected_count += 1
             print(f"  -> Ball collected. Total: {self.balls_collected_count}/{self.MAX_BALL_CAPACITY}")
 
-            # ターゲットにしたボールをリストから削除（再ターゲットしないように）
-            self.balls_info.remove(self.target_ball)
+            self.balls_info = [b for b in self.balls_info if b['name'] != self.target_ball['name']]
             self.target_ball = None
 
             if self.balls_collected_count >= self.MAX_BALL_CAPACITY:
@@ -144,7 +149,8 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_GOAL_Y:
             print("State: MOVING_TO_GOAL_Y")
-            delta_y = self.GOAL_POSITION['y'] - current_robot_pos[1]
+            robot_y = current_robot_pos_vec[1, 0]
+            delta_y = self.GOAL_POSITION['y'] - robot_y
             if abs(delta_y) > self.POSITION_TOLERANCE:
                 direction = "up" if delta_y > 0 else "down"
                 self.robot_controller.move(direction, abs(delta_y))
@@ -154,7 +160,8 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_GOAL_X:
             print("State: MOVING_TO_GOAL_X")
-            delta_x = self.GOAL_POSITION['x'] - current_robot_pos[0]
+            robot_x = current_robot_pos_vec[0, 0]
+            delta_x = self.GOAL_POSITION['x'] - robot_x
             if abs(delta_x) > self.POSITION_TOLERANCE:
                 direction = "right" if delta_x > 0 else "left"
                 self.robot_controller.move(direction, abs(delta_x))
