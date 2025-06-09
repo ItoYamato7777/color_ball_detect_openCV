@@ -58,7 +58,7 @@ class VisionSystem:
     カメラ管理、世界座標系設定、ArUcoマーカー検出、カラーボール検出、
     およびボールの世界座標変換の機能を統合し、全体の処理フローを管理するクラス。
     """
-    def __init__(self, camera_id=1, frame_width=640, frame_height=480):
+    def __init__(self, camera_id=0, frame_width=640, frame_height=480):
         """
         VisionSystemを初期化します。各機能モジュールをセットアップします。
 
@@ -161,10 +161,10 @@ class VisionSystem:
                         current_ball_info_with_world['world_xyz'] = world_xyz
                         detected_balls_info_with_world.append(current_ball_info_with_world)
 
-                        if world_xyz is not None:
-                            print(f"Ball: {ball_2d_info.get('name')}, World Coords (X,Y,Z): ({world_xyz[0]:.1f}, {world_xyz[1]:.1f}, {world_xyz[2]:.1f}) mm") #
-                        # else: #
-                            # print(f"Ball: {ball_2d_info.get('name')}, World Coords: Calculation failed or not attempted.") #
+                        # if world_xyz is not None:
+                        #     print(f"Ball: {ball_2d_info.get('name')}, World Coords (X,Y,Z): ({world_xyz[0]:.1f}, {world_xyz[1]:.1f}, {world_xyz[2]:.1f}) mm")
+                        # else:
+                        #     print(f"Ball: {ball_2d_info.get('name')}, World Coords: Calculation failed or not attempted.")
             else: #
                 for ball_2d_info in detected_balls_info_2d:
                     current_ball_info_with_world = ball_2d_info.copy()
@@ -248,7 +248,7 @@ class VisionSystem:
 
 if __name__ == "__main__":
     try:
-        vision_system = VisionSystem(camera_id=1, frame_width=640, frame_height=480)
+        vision_system = VisionSystem(camera_id=0, frame_width=640, frame_height=480)
         vision_system.run()
     except IOError as e:
         print(f"プログラムの実行中にカメラ関連のエラーが発生しました: {e}")
