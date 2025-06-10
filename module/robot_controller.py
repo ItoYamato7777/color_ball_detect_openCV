@@ -1,101 +1,62 @@
 # module/robot_controller.py
 
 import socket
-import math
-import time
-
-UDP_IP = "192.168.."  #GR-ROSEのIPアドレス
-UDP_PORT = 12345 #ポート番号 GR-ROSE側と揃える
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-print("サーボ番号（1〜3）と角度（度）を指定してください（例：1 30）")
-print("終了するには Ctrl+C または 空入力 + Enter")
-
-#コマンドライン入力待ち機能
-while True:
-    try:
-        cmd = input("入力 > ").strip()
-        if not cmd:
-            continue
-
-        parts = cmd.split()
-        if len(parts) != 2:
-            print("形式が正しくありません．例：2 -45")
-            continue
-
-        servo_id = int(parts[0])
-        angle_deg = float(parts[1])
-
-        if not 1 <= servo_id <= 3:
-            print("サーボ番号は1〜3で指定してください")
-            continue
-
-        # 度→ラジアン変換（GR-ROSE側がラジアンで受信）
-        angle_rad = math.radians(angle_deg)
-
-        # メッセージ形式： "1,0.5236" （ID=1, 角度0.5236[rad]）
-        message = f"{servo_id},{angle_rad:.4f}"
-        sock.sendto(message.encode(), (UDP_IP, UDP_PORT)) #送信
-        print(f"送信しました: サーボ{servo_id} → {angle_deg:.1f}度（{angle_rad:.4f} rad）")
-
-    except ValueError:
-        print("数値の形式が正しくありません")
-    except KeyboardInterrupt:
-        print("\n終了します")
-        break
-
-
-
-
 
 class RobotController:
     """
-    ロボットの物理的な動作を制御するためのダミークラス。
-    ActionPlannerからの指示を受け取り、実行すべきアクションをコンソールに表示します。
-    
-    実際のロボット制御APIに置き換えることを想定しています。
+    ロボットの物理的な動作を制御するためのクラス。
+    ActionPlannerからの指示をUDP通信でマイコンに送信します。
     """
-    def __init__(self):
+    def __init__(self, ip_address="192.168.3.73", port=12345):
         """
-        RobotControllerを初期化します。
+        RobotControllerを初期化し、UDPソケットを準備します。
+        
+        Args:
+            ip_address (str): ロボットのマイコンのIPアドレス。
+            port (int): UDP通信で使用するポート番号。
         """
-        print("[RobotController] Initialized. (Dummy Implementation)")
+        self.udp_ip = ip_address
+        self.udp_port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print(f"[RobotController] Initialized. Sending to {self.udp_ip}:{self.udp_port}")
 
-    def move(self, direction: str, distance_cm: float):
+    def _send_command(self, command: str, value: float):
+        """
+        コマンドと値をフォーマットしてマイコンに送信するプライベートメソッド。
+        
+        Args:
+            command (str): マイコンに送るコマンド文字列。
+            value (float): コマンドに付随する数値。
+        """
+        message = f"{command},{value:.2f}"
+        self.sock.sendto(message.encode('utf-8'), (self.udp_ip, self.udp_port))
+        print(f"[RobotController] Sent: \"{message}\"")
+
+    def move(self, direction: str, distance_mm: float):
         """
         ロボットを指定された方向に指定された距離だけ移動させます。
-        このダミー実装では、アクションをコンソールに出力するだけです。
+        距離(mm)を距離(cm)に変換し、その数値をマイコンに送信します。
+        マイコン側で、受信した数値 * 100ミリ秒 の時間、モーターを駆動します。
 
         Args:
             direction (str): 移動方向 ("up", "down", "right", "left")
-            distance_cm (float): 移動距離 (cm)
+            distance_mm (float): 移動距離 (mm)
         """
-        # TODO: ここに実際のロボットを動かすコードを実装します。
-        #       (例: シリアル通信でモータードライバに指示を送るなど)
-        print(f"[RobotController] ACTION: Move {direction} for {distance_cm:.2f} cm")
-        
-        # 動作に時間がかかることをシミュレートしたい場合は、以下のコメントを解除
-        # time.sleep(0.5) 
+        # ActionPlannerはmm単位で計算するため、cm単位に変換
+        distance_cm = distance_mm / 10.0
+        # distance_cmの値をそのまま送信する
+        self._send_command(direction, distance_cm)
 
     def pick_up_ball(self):
         """
-        目の前のボールを拾い上げる動作を実行します。
-        このダミー実装では、アクションをコンソールに出力するだけです。
+        ボールを拾い上げる動作をマイコンに指示します。
         """
-        # TODO: ここにアームなどを動かしてボールを拾うコードを実装します。
-        print("[RobotController] ACTION: Picking up ball")
-        
-        # 動作に時間がかかることをシミュレートしたい場合は、以下のコメントを解除
-        # time.sleep(1.0)
+        # 動作コマンドには数値を必要としないため、0を送信
+        self._send_command("pick_up", 0)
 
     def drop_ball(self):
         """
-        保持しているボールをゴール（カゴ）に落とす動作を実行します。
-        このダミー実装では、アクションをコンソールに出力するだけです。
+        ボールを落とす動作をマイコンに指示します。
         """
-        # TODO: ここにカゴを傾けるなどしてボールを落とすコードを実装します。
-        print("[RobotController] ACTION: Dropping all balls")
-        
-        # 動作に時間がかかることをシミュレートしたい場合は、以下のコメントを解除
-        # time.sleep(1.0)
+        # 動作コマンドには数値を必要としないため、0を送信
+        self._send_command("drop", 0)
