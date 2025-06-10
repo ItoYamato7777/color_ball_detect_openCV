@@ -7,7 +7,7 @@ class RobotController:
     ロボットの物理的な動作を制御するためのクラス。
     ActionPlannerからの指示をUDP通信でマイコンに送信します。
     """
-    def __init__(self, ip_address="192.168.3.73", port=12345):
+    def __init__(self, ip_address="192.168.3.109", port=12345):
         """
         RobotControllerを初期化し、UDPソケットを準備します。
         

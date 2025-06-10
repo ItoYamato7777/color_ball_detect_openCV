@@ -5,7 +5,7 @@ class CameraManager:
     """
     カメラの初期化、フレームのキャプチャ、解放を管理するクラス。
     """
-    def __init__(self, camera_id=0, width=640, height=480):
+    def __init__(self, camera_id=1, width=640, height=480):
         """
         カメラを初期化し、指定された解像度を設定します。
 
