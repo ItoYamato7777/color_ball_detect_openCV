@@ -100,10 +100,10 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_BALL_Y:
             # <--- Y軸は左右移動 ("right", "left")
-            print("State: MOVING_TO_BALL_Y (Align Left/Right)")
             robot_y = current_robot_pos_vec[1, 0]
             target_y = self.target_ball['world_xyz'][1]
             delta_y = target_y - robot_y
+            print(f"  delta_y: {delta_y}")
             
             if abs(delta_y) > self.POSITION_TOLERANCE:
                 # <--- 時間間隔をチェックしてからコマンド送信
@@ -116,11 +116,11 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_BALL_X:
             # <--- X軸は前後移動 ("up", "down")
-            print("State: MOVING_TO_BALL_X (Align Forward/Backward)")
             robot_x = current_robot_pos_vec[0, 0]
             target_x_ball = self.target_ball['world_xyz'][0]
             target_x = target_x_ball - self.PICKUP_OFFSET_X
             delta_x = target_x - robot_x
+            print(f"  delta_x: {delta_x}")
 
             if abs(delta_x) > self.POSITION_TOLERANCE:
                 # <--- 時間間隔をチェックしてからコマンド送信
@@ -133,7 +133,6 @@ class ActionPlanner:
                 self.state = self.State.PICKING_UP_BALL
 
         elif self.state == self.State.PICKING_UP_BALL:
-            print("State: PICKING_UP_BALL")
             # <--- 時間間隔をチェックしてからコマンド送信
             if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
                 self.robot_controller.pick_up_ball()
@@ -150,7 +149,6 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_GOAL_Y:
             # <--- Y軸は左右移動 ("right", "left")
-            print("State: MOVING_TO_GOAL_Y (Align Left/Right)")
             robot_y = current_robot_pos_vec[1, 0]
             delta_y = self.GOAL_POSITION['y'] - robot_y
             if abs(delta_y) > self.POSITION_TOLERANCE:
@@ -165,7 +163,6 @@ class ActionPlanner:
 
         elif self.state == self.State.MOVING_TO_GOAL_X:
             # <--- X軸は前後移動 ("up", "down")
-            print("State: MOVING_TO_GOAL_X (Align Forward/Backward)")
             robot_x = current_robot_pos_vec[0, 0]
             delta_x = self.GOAL_POSITION['x'] - robot_x
             if abs(delta_x) > self.POSITION_TOLERANCE:
@@ -179,7 +176,6 @@ class ActionPlanner:
                 self.state = self.State.DROPPING_BALL
         
         elif self.state == self.State.DROPPING_BALL:
-            print("State: DROPPING_BALL")
             # <--- 時間間隔をチェックしてからコマンド送信
             if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
                 self.robot_controller.drop_ball()

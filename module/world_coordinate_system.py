@@ -1,3 +1,5 @@
+# module/world_coordinate_system.py
+
 import numpy as np
 import cv2
 
@@ -27,8 +29,8 @@ class WorldCoordinateSystem:
         self.criteria = criteria #
 
         # 世界座標系を定義するための3次元点の準備 (objp)
-        self.objp = np.zeros((self.ny * self.nx, 3), np.float32) #
-        self.objp[:, :2] = np.mgrid[0:self.nx, 0:self.ny].T.reshape(-1, 2) * self.square_size #
+        self.objp = np.zeros((self.ny * self.nx, 3), np.float32)
+        self.objp[:, :2] = np.mgrid[0:self.nx, 0:self.ny].T.reshape(-1, 2) * self.square_size
 
         # 3D軸の定義 (世界座標系)
         # X軸(元コードコメント:青 -> 実際は (255,0,0) なのでBGRで青), Y軸(緑), Z軸(赤)
@@ -36,36 +38,31 @@ class WorldCoordinateSystem:
         self.origin_3d = np.float32([[0, 0, 0],
                                      [self.axis_length, 0, 0],
                                      [0, self.axis_length, 0],
-                                     [0, 0, -self.axis_length]]).reshape(-1, 3) #
+                                     [0, 0, -self.axis_length]]).reshape(-1, 3)
 
         self.rvec_w2c = None  # 世界座標系 -> カメラ座標系への回転ベクトル
         self.tvec_w2c = None  # 世界座標系 -> カメラ座標系への並進ベクトル
-        self.world_frame_established = False #
+        self.world_frame_established = False
 
-        print("WorldCoordinateSystem: カメラ内部パラメータと歪み係数を設定しました。") # similar message
+        print("WorldCoordinateSystem: 初期化完了。")
 
     def _draw_axes_on_image(self, img, imgpts):
         """
         画像に3D軸を描画するプライベートヘルパーメソッド。
-
         Args:
             img (numpy.ndarray): 描画対象の画像。
             imgpts (numpy.ndarray): 投影された軸の座標点 (原点、X終点、Y終点、Z終点)。
         """
-        # 描画色 BGR: X軸 -> (255,0,0) 青, Y軸 -> (0,255,0) 緑, Z軸 -> (0,0,255) 赤
-        # 元のスクリプトのコメントと色が一部不一致でしたが、コードの描画色に合わせます。
-        # X軸 (元コメント: 赤, コード: 青)
-        # Y軸 (元コメント: 緑, コード: 緑)
-        # Z軸 (元コメント: 青, コード: 赤)
-        origin = tuple(map(int, imgpts[0].ravel())) #
-        x_axis_end = tuple(map(int, imgpts[1].ravel())) #
-        y_axis_end = tuple(map(int, imgpts[2].ravel())) #
-        z_axis_end = tuple(map(int, imgpts[3].ravel())) #
+        origin = tuple(map(int, imgpts[0].ravel()))
+        x_axis_end = tuple(map(int, imgpts[1].ravel()))
+        y_axis_end = tuple(map(int, imgpts[2].ravel()))
+        z_axis_end = tuple(map(int, imgpts[3].ravel()))
 
-        cv2.line(img, origin, x_axis_end, (255, 0, 0), 3)  # X軸 (青)
+        # <--- 修正: BGRカラーモデルに基づき、X軸を赤、Z軸を青に変更
+        cv2.line(img, origin, x_axis_end, (0, 0, 255), 3)  # X軸 (赤)
         cv2.line(img, origin, y_axis_end, (0, 255, 0), 3)  # Y軸 (緑)
-        cv2.line(img, origin, z_axis_end, (0, 0, 255), 3)  # Z軸 (赤)
-        return img # 描画後の画像を返すように変更
+        cv2.line(img, origin, z_axis_end, (255, 0, 0), 3)  # Z軸 (青)
+        return img
 
     def establish_world_frame(self, frame):
         """
@@ -79,47 +76,46 @@ class WorldCoordinateSystem:
             bool: 世界座標系の設定に成功した場合は True、失敗した場合は False。
         """
         print("\n世界座標系設定処理を開始します。チェスボードを検出中...")
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        ret_corners, corners = cv2.findChessboardCorners(gray_frame, (self.nx, self.ny), None) #
+        ret_corners, corners = cv2.findChessboardCorners(gray_frame, (self.nx, self.ny), None)
 
         if ret_corners:
-            print("チェスボードコーナーが見つかりました。solvePnPを実行します...") #
-            corners_subpix = cv2.cornerSubPix(gray_frame, corners, (11, 11), (-1, -1), self.criteria) #
+            print("チェスボードコーナーが見つかりました。solvePnPを実行します...")
+            corners_subpix = cv2.cornerSubPix(gray_frame, corners, (11, 11), (-1, -1), self.criteria)
 
             try:
-                ret_pnp, rvec_temp, tvec_temp = cv2.solvePnP(self.objp, corners_subpix, self.mtx, self.dist) #
+                ret_pnp, rvec_temp, tvec_temp = cv2.solvePnP(self.objp, corners_subpix, self.mtx, self.dist)
 
                 if ret_pnp:
-                    self.rvec_w2c = rvec_temp #
-                    self.tvec_w2c = tvec_temp #
-                    self.world_frame_established = True #
-                    print("solvePnP成功。世界座標系が設定されました。") #
+                    self.rvec_w2c = rvec_temp
+                    self.tvec_w2c = tvec_temp
+                    self.world_frame_established = True
+                    print("solvePnP成功。世界座標系が設定されました。")
 
-                    # 確認用ウィンドウ表示
-                    img_confirm = frame.copy() #
-                    cv2.drawChessboardCorners(img_confirm, (self.nx, self.ny), corners_subpix, ret_corners) #
+                    img_confirm = frame.copy()
+                    cv2.drawChessboardCorners(img_confirm, (self.nx, self.ny), corners_subpix, ret_corners)
 
-                    origin_2d_confirm, _ = cv2.projectPoints(self.origin_3d, self.rvec_w2c, self.tvec_w2c, self.mtx, self.dist) #
-                    self._draw_axes_on_image(img_confirm, origin_2d_confirm) #
+                    origin_2d_confirm, _ = cv2.projectPoints(self.origin_3d, self.rvec_w2c, self.tvec_w2c, self.mtx, self.dist)
+                    self._draw_axes_on_image(img_confirm, origin_2d_confirm)
 
-                    cv2.imshow('World Frame Set Confirmation', img_confirm) #
-                    print("設定された世界座標軸の確認ウィンドウを表示しました。このウィンドウを閉じる (何かキーを押す) と、メインのカメラ映像に戻ります。") #
-                    cv2.waitKey(0) #
-                    cv2.destroyWindow('World Frame Set Confirmation') #
+                    cv2.imshow('World Frame Set Confirmation', img_confirm)
+                    print("設定された世界座標軸の確認ウィンドウを表示しました。このウィンドウを閉じる (何かキーを押す) と、メインのカメラ映像に戻ります。")
+                    cv2.waitKey(0)
+                    cv2.destroyWindow('World Frame Set Confirmation')
                     return True
                 else:
-                    print("solvePnPが失敗しました。検出されたコーナーが不適切かもしれません。") #
-                    self.world_frame_established = False #
+                    print("solvePnPが失敗しました。")
+                    self.world_frame_established = False
                     return False
             except Exception as e:
-                print(f"エラー: solvePnP 実行中にエラーが発生しました: {e}") #
-                self.world_frame_established = False #
+                print(f"エラー: solvePnP 実行中にエラーが発生しました: {e}")
+                self.world_frame_established = False
                 return False
         else:
-            print("チェスボードコーナーが見つかりませんでした。") #
-            print(f"カメラに {self.nx}x{self.ny} のチェスボード全体が鮮明に写っているか確認してください。") #
-            self.world_frame_established = False #
+            print("チェスボードコーナーが見つかりませんでした。")
+            print(f"カメラに {self.nx}x{self.ny} のチェスボード全体が鮮明に写っているか確認してください。")
+            self.world_frame_established = False
             return False
 
     def draw_world_axes(self, frame):
@@ -134,10 +130,9 @@ class WorldCoordinateSystem:
         """
         if self.world_frame_established and self.rvec_w2c is not None and self.tvec_w2c is not None:
             try:
-                # 世界座標系の原点と軸の先端を画像平面に投影
-                projected_pts, _ = cv2.projectPoints(self.origin_3d, self.rvec_w2c, self.tvec_w2c, self.mtx, self.dist) #
-                frame = self._draw_axes_on_image(frame, projected_pts) #
-                cv2.putText(frame, "World Frame Set", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA) #
+                projected_pts, _ = cv2.projectPoints(self.origin_3d, self.rvec_w2c, self.tvec_w2c, self.mtx, self.dist)
+                frame = self._draw_axes_on_image(frame, projected_pts)
+                cv2.putText(frame, "World Frame Set", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
             except Exception as e:
-                print(f"警告: 世界座標軸の描画エラー: {e}") #
+                print(f"警告: 世界座標軸の描画エラー: {e}")
         return frame
