@@ -2,6 +2,7 @@
 
 import math
 from enum import Enum, auto
+import time  # <--- 修正: timeモジュールをインポート
 
 # robot_controllerは別途実装されているという前提
 from .robot_controller import RobotController
@@ -27,15 +28,13 @@ class ActionPlanner:
     def __init__(self, robot_controller: RobotController):
         """
         ActionPlannerを初期化します。
-
-        Args:
-            robot_controller (RobotController): ロボットの動作を制御するコントローラー。
         """
         # --- 制御用パラメータ・定数 ---
         self.GOAL_POSITION = {'x': 20.0, 'y': 0.0}   # ゴールの座標(cm単位) ※要調整
         self.PICKUP_OFFSET_X = 10.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
         self.POSITION_TOLERANCE = 20.0               # 座標合わせの許容誤差(cm)
         self.MAX_BALL_CAPACITY = 3                  # 一度に持てるボールの最大数
+        self.COMMAND_INTERVAL = 1.5  # <--- コマンドの送信間隔（秒）
 
         # --- 内部状態 ---
         self.robot_controller = robot_controller
@@ -44,18 +43,14 @@ class ActionPlanner:
         self.balls_collected_count = 0
         self.robot_pose = None
         self.balls_info = []
+        self.last_command_time = 0  # <--- 最後のコマンド送信時刻を記録
 
         print("ActionPlanner: 初期化完了。")
-        print(f"  - Goal Position: {self.GOAL_POSITION}")
-        print(f"  - Max Ball Capacity: {self.MAX_BALL_CAPACITY}")
+        print(f"  - Command Interval: {self.COMMAND_INTERVAL}s")
 
     def update_world_state(self, robot_pose: dict, balls_info: list):
         """
         VisionSystemから最新の世界情報を更新します。
-
-        Args:
-            robot_pose (dict): ロボットの姿勢情報 {'world_position': (x,y,z)}
-            balls_info (list): 検出されたボール情報のリスト
         """
         self.robot_pose = robot_pose
         self.balls_info = balls_info
@@ -93,16 +88,14 @@ class ActionPlanner:
             return
 
         current_robot_pos_vec = self.robot_pose['world_position']
+        current_time = time.time() # <--- 現在時刻を取得
 
         # --- ステートマシン ---
         if self.state == self.State.SEARCHING_BALL:
-            print("State: SEARCHING_BALL")
             self.target_ball = self._find_nearest_ball()
             if self.target_ball:
-                print(f"  -> Found target ball: {self.target_ball['name']} at ({self.target_ball['world_xyz'][0]:.1f}, {self.target_ball['world_xyz'][1]:.1f})")
                 self.state = self.State.MOVING_TO_BALL_Y
             else:
-                print("  -> No balls found. Waiting.")
                 self.state = self.State.WAITING
 
         elif self.state == self.State.MOVING_TO_BALL_Y:
@@ -113,10 +106,12 @@ class ActionPlanner:
             delta_y = target_y - robot_y
             
             if abs(delta_y) > self.POSITION_TOLERANCE:
-                direction = "right" if delta_y > 0 else "left"
-                self.robot_controller.move(direction, abs(delta_y))
+                # <--- 時間間隔をチェックしてからコマンド送信
+                if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                    direction = "right" if delta_y > 0 else "left"
+                    self.robot_controller.move(direction, abs(delta_y))
+                    self.last_command_time = current_time
             else:
-                print("  -> Y coordinate aligned.")
                 self.state = self.State.MOVING_TO_BALL_X
 
         elif self.state == self.State.MOVING_TO_BALL_X:
@@ -124,30 +119,34 @@ class ActionPlanner:
             print("State: MOVING_TO_BALL_X (Align Forward/Backward)")
             robot_x = current_robot_pos_vec[0, 0]
             target_x_ball = self.target_ball['world_xyz'][0]
-            # <--- 修正: オフセットを適用
             target_x = target_x_ball - self.PICKUP_OFFSET_X
             delta_x = target_x - robot_x
 
             if abs(delta_x) > self.POSITION_TOLERANCE:
-                direction = "up" if delta_x > 0 else "down"
-                self.robot_controller.move(direction, abs(delta_x))
+                # <--- 時間間隔をチェックしてからコマンド送信
+                if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                    direction = "up" if delta_x > 0 else "down"
+                    self.robot_controller.move(direction, abs(delta_x))
+                    self.last_command_time = current_time
             else:
                 print("  -> X coordinate aligned.")
                 self.state = self.State.PICKING_UP_BALL
 
         elif self.state == self.State.PICKING_UP_BALL:
             print("State: PICKING_UP_BALL")
-            self.robot_controller.pick_up_ball()
-            self.balls_collected_count += 1
-            print(f"  -> Ball collected. Total: {self.balls_collected_count}/{self.MAX_BALL_CAPACITY}")
+            # <--- 時間間隔をチェックしてからコマンド送信
+            if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                self.robot_controller.pick_up_ball()
+                self.last_command_time = current_time
+                
+                self.balls_collected_count += 1
+                self.balls_info = [b for b in self.balls_info if b['name'] != self.target_ball['name']]
+                self.target_ball = None
 
-            self.balls_info = [b for b in self.balls_info if b['name'] != self.target_ball['name']]
-            self.target_ball = None
-
-            if self.balls_collected_count >= self.MAX_BALL_CAPACITY:
-                self.state = self.State.MOVING_TO_GOAL_Y
-            else:
-                self.state = self.State.SEARCHING_BALL
+                if self.balls_collected_count >= self.MAX_BALL_CAPACITY:
+                    self.state = self.State.MOVING_TO_GOAL_Y
+                else:
+                    self.state = self.State.SEARCHING_BALL
 
         elif self.state == self.State.MOVING_TO_GOAL_Y:
             # <--- Y軸は左右移動 ("right", "left")
@@ -155,8 +154,11 @@ class ActionPlanner:
             robot_y = current_robot_pos_vec[1, 0]
             delta_y = self.GOAL_POSITION['y'] - robot_y
             if abs(delta_y) > self.POSITION_TOLERANCE:
-                direction = "right" if delta_y > 0 else "left"
-                self.robot_controller.move(direction, abs(delta_y))
+                # <--- 時間間隔をチェックしてからコマンド送信
+                if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                    direction = "right" if delta_y > 0 else "left"
+                    self.robot_controller.move(direction, abs(delta_y))
+                    self.last_command_time = current_time
             else:
                 print("  -> Goal Y coordinate aligned.")
                 self.state = self.State.MOVING_TO_GOAL_X
@@ -167,19 +169,23 @@ class ActionPlanner:
             robot_x = current_robot_pos_vec[0, 0]
             delta_x = self.GOAL_POSITION['x'] - robot_x
             if abs(delta_x) > self.POSITION_TOLERANCE:
-                direction = "up" if delta_x > 0 else "down"
-                self.robot_controller.move(direction, abs(delta_x))
+                # <--- 時間間隔をチェックしてからコマンド送信
+                if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                    direction = "up" if delta_x > 0 else "down"
+                    self.robot_controller.move(direction, abs(delta_x))
+                    self.last_command_time = current_time
             else:
                 print("  -> Goal X coordinate aligned.")
                 self.state = self.State.DROPPING_BALL
         
         elif self.state == self.State.DROPPING_BALL:
             print("State: DROPPING_BALL")
-            self.robot_controller.drop_ball()
-            self.balls_collected_count = 0
-            print("  -> All balls dropped. Restarting sequence.")
-            self.state = self.State.SEARCHING_BALL
+            # <--- 時間間隔をチェックしてからコマンド送信
+            if current_time - self.last_command_time >= self.COMMAND_INTERVAL:
+                self.robot_controller.drop_ball()
+                self.last_command_time = current_time
+                self.balls_collected_count = 0
+                self.state = self.State.SEARCHING_BALL
 
         elif self.state == self.State.WAITING:
-            # 何もしない
             pass
