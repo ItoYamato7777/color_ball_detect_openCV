@@ -143,7 +143,7 @@ class ActionPlanner:
                 if abs(robot_x - target_pos[0]) < self.TARGET_LOCK_DISTANCE_X:
                     self.target_locked = True
                     self.locked_target_position = target_pos
-                    print(f">>> TARGET LOCKED on {self.target_ball['name']} at ({target_pos[0]:.1f}, {target_pos[1]:.1f}) <<<")
+                    print(f">>> TARGET LOCKED ON!!!!   {self.target_ball['name']} at ({target_pos[0]:.1f}, {target_pos[1]:.1f}) <<<")
 
             # ステップ3: 現在の状態で移動を実行
             if self.state == self.State.MOVING_TO_BALL_Y:
