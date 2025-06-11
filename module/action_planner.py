@@ -41,8 +41,8 @@ class ActionPlanner:
         self.MAX_BALL_CAPACITY = 3  # ロボットが保持できるボールの最大数
         # Dynamic Interval: 移動距離に応じて次のコマンドまでの待機時間を動的に変更するための係数
         self.MIN_COMMAND_INTERVAL = 0.75  # 待機時間（秒）の最小値
-        self.MAX_COMMAND_INTERVAL = 1.5   # 待機時間（秒）の最大値
-        self.INTERVAL_TIME_GAIN = 0.05    # 移動距離(cm)を待機時間(秒)に変換する係数 (例: 10cm移動 -> 0.5s待機)
+        self.MAX_COMMAND_INTERVAL = 2.0   # 待機時間（秒）の最大値
+        self.INTERVAL_TIME_GAIN = 0.15    # 移動距離(cm)を待機時間(秒)に変換する係数 (例: 10cm移動 -> 0.5s待機)
         
         self.TARGET_LOCK_DISTANCE_X = 100.0  # <--- ターゲットをロックするX軸距離(mm)
 
