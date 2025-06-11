@@ -70,37 +70,37 @@ void setup() {
   for(int i = 0; i < 5; i++){
     C_servo[i].attach(ICS1, i+1);
     C_servo[i].setStretch(30);
-    delay(1)
+    delay(1);
     C_servo[i].setSpeed(60);
-    delay(1)
+    delay(1);
     krs_setposition(&C_servo[i], 45);
-    delay(1)
+    delay(1);
   }
   // 前輪セットアップ
   for(int i = 0; i < 2; i++){
     F_servo[i].attach(ICS3, i+1);
     F_servo[i].setStretch(30);
-    delay(1)
+    delay(1);
     F_servo[i].setSpeed(60);
-    delay(1)
+    delay(1);
     krs_setposition(&F_servo[i], 0);
   }
   // 後輪セットアップ
   for(int i = 0; i < 2; i++){
     R_servo[i].attach(ICS4, i+1);
     R_servo[i].setStretch(30);
-    delay(1)
+    delay(1);
     R_servo[i].setSpeed(60);
-    delay(1)
+    delay(1);
     krs_setposition(&R_servo[i], 0);
-    delay(1)
+    delay(1);
   }
   // かごセットアップ
   R_servo[2].attach(ICS4, 2+1);
   R_servo[2].setStretch(30);
-  delay(1)
+  delay(1);
   R_servo[2].setSpeed(30);
-  delay(1)
+  delay(1);
   krs_setposition(&R_servo[2], -2);
 
   delay(1000);
