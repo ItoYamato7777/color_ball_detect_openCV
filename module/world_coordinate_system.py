@@ -58,9 +58,9 @@ class WorldCoordinateSystem:
         y_axis_end = tuple(map(int, imgpts[2].ravel()))
         z_axis_end = tuple(map(int, imgpts[3].ravel()))
 
-        # <--- 修正: BGRカラーモデルに基づき、X軸を赤、Z軸を青に変更
-        cv2.line(img, origin, x_axis_end, (0, 0, 255), 3)  # X軸 (赤)
-        cv2.line(img, origin, y_axis_end, (0, 255, 0), 3)  # Y軸 (緑)
+        # <--- BGRカラーモデルに基づき、X軸を赤、Z軸を青に変更
+        cv2.line(img, origin, x_axis_end, (0, 255, 0), 3)  # X軸 (緑)
+        cv2.line(img, origin, y_axis_end, (0, 0, 255), 3)  # Y軸 (赤)
         cv2.line(img, origin, z_axis_end, (255, 0, 0), 3)  # Z軸 (青)
         return img
 
