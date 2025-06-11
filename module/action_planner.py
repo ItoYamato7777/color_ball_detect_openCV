@@ -37,6 +37,7 @@ class ActionPlanner:
         self.MOVE_PROPORTIONAL_GAIN = 0.6
         # move_coefficient 移動距離の比例係数
         self.move_coefficient = 0.1
+        self.MAX_BALL_CAPACITY = 3  # ロボットが保持できるボールの最大数
         # Dynamic Interval: 移動距離に応じて次のコマンドまでの待機時間を動的に変更するための係数
         self.MIN_COMMAND_INTERVAL = 0.25  # 待機時間（秒）の最小値
         self.MAX_COMMAND_INTERVAL = 1.5   # 待機時間（秒）の最大値
