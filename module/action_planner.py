@@ -125,14 +125,14 @@ class ActionPlanner:
                 self.state = self.State.WAITING
         
         elif self.state == self.State.MOVING_TO_BALL_Y or self.state == self.State.MOVING_TO_BALL_X:
-            # <--- 修正: ボールへの移動ロジックを統合・更新 ---
+            # <--- ボールへの移動ロジックを統合・更新 ---
             
             # ステップ1: ターゲットの決定（ロックされていなければ再探索）
             if self.target_locked:
                 target_pos = self.locked_target_position
             else:
                 new_target = self._find_nearest_ball()
-                if new_target is None: # 前方にボールがなくなった場合
+                if new_target is None:
                     self.state = self.State.WAITING
                     return
                 self.target_ball = new_target
@@ -153,6 +153,12 @@ class ActionPlanner:
                 if abs(delta_y) > self.POSITION_TOLERANCE:
                     distance_to_move_mm = abs(delta_y) * self.MOVE_PROPORTIONAL_GAIN
                     direction = "right" if delta_y > 0 else "left"
+                    
+                    # <--- デバッグ情報を表示 ---
+                    robot_x = current_robot_pos_vec[0, 0]
+                    delta_x_for_display = (target_pos[0] - self.PICKUP_OFFSET_X) - robot_x
+                    print(f"  - Target:({target_pos[0]:.1f}, {target_pos[1]:.1f}), Delta:(X:{delta_x_for_display:.1f}, Y:{delta_y:.1f})")
+
                     self.robot_controller.move(direction, distance_to_move_mm)
                     
                     distance_cm = distance_to_move_mm / 10.0
@@ -170,6 +176,12 @@ class ActionPlanner:
                 if abs(delta_x) > self.POSITION_TOLERANCE:
                     distance_to_move_mm = abs(delta_x) * self.MOVE_PROPORTIONAL_GAIN
                     direction = "up" if delta_x > 0 else "down"
+
+                    # <--- デバッグ情報を表示 ---
+                    robot_y = current_robot_pos_vec[1, 0]
+                    delta_y_for_display = (target_pos[1] + self.PICKUP_OFFSET_Y) - robot_y
+                    print(f"  - Target:({target_pos[0]:.1f}, {target_pos[1]:.1f}), Delta:(X:{delta_x:.1f}, Y:{delta_y_for_display:.1f})")
+
                     self.robot_controller.move(direction, distance_to_move_mm)
 
                     distance_cm = distance_to_move_mm / 10.0
