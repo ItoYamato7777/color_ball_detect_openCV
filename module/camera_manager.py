@@ -15,7 +15,7 @@ class CameraManager:
             height (int): カメラフレームの高さ。
         """
         self.camera_id = camera_id
-        self.cap = cv2.VideoCapture(self.camera_id)
+        self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
             print(f"エラー: カメラID {self.camera_id} を開けませんでした。")
             raise IOError(f"Cannot open camera {self.camera_id}")
