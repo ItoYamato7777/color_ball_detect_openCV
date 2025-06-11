@@ -31,7 +31,7 @@ class ActionPlanner:
         """
         # --- 制御用パラメータ・定数 ---
         self.GOAL_POSITION = {'x': 20.0, 'y': 0.0}   # ゴールの座標(cm単位) ※要調整
-        self.PICKUP_OFFSET_X = 10.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
+        self.PICKUP_OFFSET_X = 25.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
         self.POSITION_TOLERANCE = 20.0               # 座標合わせの許容誤差(cm)
         # Proportional-Control Gain: 残り距離のうち、一度にどれだけの割合を進むかを決める係数 (0.0-1.0)
         self.MOVE_PROPORTIONAL_GAIN = 0.6
