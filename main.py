@@ -57,7 +57,7 @@ class VisionSystem:
     """
     カメラ管理、画像処理、そしてロボット制御スレッドの起動と管理を行うメインクラス。
     """
-    def __init__(self, camera_id=0, frame_width=640, frame_height=480):
+    def __init__(self, camera_id=1, frame_width=640, frame_height=480):
         print("VisionSystem: 初期化を開始します...")
         try:
             self.camera_manager = CameraManager(camera_id, frame_width, frame_height)
@@ -212,8 +212,7 @@ class VisionSystem:
 
 if __name__ == "__main__":
     try:
-        # 自分のカメラIDに合わせて_camera_idを調整してください
-        vision_system = VisionSystem(camera_id=0, frame_width=640, frame_height=480)
+        vision_system = VisionSystem(camera_id=1, frame_width=640, frame_height=480)
         vision_system.run()
     except Exception as e:
         print(f"予期せぬエラーが発生しました: {e}")
