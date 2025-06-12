@@ -5,36 +5,36 @@ import socket
 class RobotController:
     """
     ロボットの物理的な動作を制御するためのクラス。
-    TCP通信を使い、マイコンにコマンドを送信し、動作完了報告を待つ。
+    1アクションごとにTCP接続を確立し、同期的にコマンドを実行する。
     """
     def __init__(self, ip_address="192.168.3.73", port=12345, timeout=15.0):
         """
-        RobotControllerを初期化し、マイコンとのTCP接続を確立します。
+        RobotControllerを初期化します。
         """
         self.tcp_ip = ip_address
         self.tcp_port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(timeout) # タイムアウトを設定
-
-        try:
-            print(f"[RobotController] Connecting to {self.tcp_ip}:{self.tcp_port}...")
-            self.sock.connect((self.tcp_ip, self.tcp_port))
-            print("[RobotController] Connected successfully.")
-        except socket.error as e:
-            print(f"[RobotController] Connection failed: {e}")
-            raise
+        self.timeout = timeout
+        print(f"[RobotController] Initialized. Target: {self.tcp_ip}:{self.tcp_port}")
 
     def execute_and_wait(self, command: str, value: float):
         """
-        コマンドを送信し、マイコンからの完了報告('done')を待つ。
+        1. 接続 -> 2. コマンド送信 -> 3. 完了報告待機 -> 4. 切断 の一連の処理を行う。
         """
-        try:
-            message = f"{command},{value:.2f}\n" # 改行コードを追加
-            print(f"[RobotController] Sending command: \"{message.strip()}\"")
-            self.sock.sendall(message.encode('utf-8'))
+        # <--- 毎回新しいソケットを作成 ---
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(self.timeout)
 
-            # マイコンからの応答を待つ (最大1024バイト)
-            response = self.sock.recv(1024).decode('utf-8').strip()
+        try:
+            # 1. 接続
+            sock.connect((self.tcp_ip, self.tcp_port))
+            
+            # 2. コマンド送信
+            message = f"{command},{value:.2f}\n"
+            print(f"[RobotController] Sending command: \"{message.strip()}\"")
+            sock.sendall(message.encode('utf-8'))
+
+            # 3. 完了報告待機
+            response = sock.recv(1024).decode('utf-8').strip()
             if response == "done":
                 print(f"[RobotController] Received 'done' for command: {command}")
             else:
@@ -46,6 +46,9 @@ class RobotController:
         except socket.error as e:
             print(f"[RobotController] ERROR: Connection error: {e}")
             raise
+        finally:
+            # 4. 切断
+            sock.close()
 
     def move(self, direction: str, distance_mm: float):
         distance_cm = distance_mm / 10.0
@@ -58,8 +61,6 @@ class RobotController:
         self.execute_and_wait("drop", 0)
 
     def close(self):
-        """
-        ソケット接続を閉じる
-        """
-        print("[RobotController] Closing connection.")
-        self.sock.close()
+        # 接続を維持しないモデルになったため、このメソッドは不要になるが、
+        # main.py側で呼び出されている可能性を考慮し、何もしないメソッドとして残す。
+        pass

@@ -3,16 +3,15 @@
 #include <Arduino.h>
 #include <ICS.h>
 #include <WiFiEsp.h>
-#include <WiFiEspServer.h>
+#include <WiFiEspServer.h> // <--- UDPから変更
 
 // --- 定数定義 ---
-#define TCP_PORT 12345 // <--- ポート番号
+#define TCP_PORT 12345
 #define ESP_BAUD 115200
 #define ESP_SERIAL Serial6
 char ssid[] = "KXR-wifi_2.4G";
 char pass[] = "zutt0issy0";
 
-// サーボ設定
 #define KRS_MIN 3500
 #define KRS_MAX 11500
 #define SERVO_MIN -135
@@ -24,9 +23,9 @@ WiFiEspServer server(TCP_PORT); // <--- TCPサーバーオブジェクト
 IcsController ICS1(Serial1);
 IcsController ICS3(Serial3);
 IcsController ICS4(Serial4);
-IcsServo C_servo[5]; // 回収装置 ID:1-5 (ICS1)
-IcsServo F_servo[2]; // 前輪 ID:1-2 (ICS3)
-IcsServo R_servo[3]; // 後輪＆かご ID:1-3 (ICS4)
+IcsServo C_servo[5];
+IcsServo F_servo[2];
+IcsServo R_servo[3];
 
 
 // --- プロトタイプ宣言 ---
@@ -41,8 +40,6 @@ void drop();
 // --- セットアップ ---
 void setup() {
   Serial.begin(9600);
-
-  // Wi-Fi接続処理
   ESP_SERIAL.begin(ESP_BAUD);
   WiFi.init(&ESP_SERIAL);
 
@@ -50,10 +47,10 @@ void setup() {
     Serial.print("Connecting to ");
     Serial.println(ssid);
     WiFi.begin(ssid, pass);
-    delay(5000); // 接続試行の間隔
+    delay(5000);
   }
   
-  server.begin(); // <--- CPサーバーを開始
+  server.begin(); // <--- TCPサーバーを開始
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
@@ -110,16 +107,18 @@ void setup() {
 void loop() {
   WiFiEspClient client = server.available(); // PCからの接続を待つ
 
+  // クライアントが接続してきた場合
   if (client) {
     Serial.println("Client connected.");
     
-    while (client.connected()) {
+    // <--- 1コマンドのみを処理し、接続を維持しない ---
+    bool received_command = false;
+    while (client.connected() && !received_command) {
       if (client.available()) {
-        String line = client.readStringUntil('\n'); // コマンドを1行読み込む
+        String line = client.readStringUntil('\n');
         Serial.print("Received: ");
         Serial.println(line);
 
-        // Stringをchar配列に変換してパース
         char buffer[32];
         line.toCharArray(buffer, sizeof(buffer));
 
@@ -129,7 +128,6 @@ void loop() {
         if (command != NULL && value_str != NULL) {
           float value = atof(value_str);
 
-          // コマンドに応じて処理を分岐・実行
           if (strcmp(command, "up") == 0) move_forward(value);
           else if (strcmp(command, "down") == 0) move_backward(value);
           else if (strcmp(command, "right") == 0) move_right(value);
@@ -138,13 +136,18 @@ void loop() {
           else if (strcmp(command, "drop") == 0) drop();
           else Serial.println("Unknown command");
           
-          // --- 修正: 動作完了後にPCへ報告 ---
           Serial.println("Action complete. Sending 'done'.");
           client.println("done"); 
+        } else {
+          Serial.println("Invalid packet format");
         }
+        
+        received_command = true; // 1コマンド処理したのでフラグを立てる
       }
     }
-    // クライアントが切断されたらメッセージを表示
+    
+    // 処理が終わったらクライアントを切断
+    client.stop();
     Serial.println("Client disconnected.");
   }
 }
