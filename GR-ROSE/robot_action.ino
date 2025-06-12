@@ -1,4 +1,4 @@
-// robot_action.ino
+// robot_action.ino (メモリ断片化対策版)
 
 #include <Arduino.h>
 #include <ICS.h>
@@ -105,57 +105,59 @@ void setup() {
 
 // --- メインループ
 void loop() {
-  // 新しいクライアント(PC)からの接続を待つ
   WiFiEspClient client = server.available();
 
-  // クライアントが接続してきた場合
   if (client) {
     Serial.println("Client connected. Entering command loop...");
     
-    // クライアントが接続している間、コマンドを受け付け続ける
+    // データ受信用のバッファとインデックス
+    char recv_buffer[64];
+    byte buffer_index = 0;
+
     while (client.connected()) {
-      // クライアントからデータが送信されてきたか確認
       if (client.available()) {
-        // '\n' (改行) までを1つのコマンドとして読み込む
-        String line = client.readStringUntil('\n');
-        Serial.print("Received: ");
-        Serial.println(line);
+        char c = client.read(); // 1文字ずつ読み込む
 
-        // 読み込んだ文字列を解析バッファにコピー
-        char buffer[32];
-        line.toCharArray(buffer, sizeof(buffer));
+        // 改行コード('\n')が来たら、コマンド処理を実行
+        if (c == '\n') {
+          recv_buffer[buffer_index] = '\0'; // バッファをヌル終端してC文字列にする
+          Serial.print("Received: ");
+          Serial.println(recv_buffer);
 
-        // コマンドと値をカンマで分割
-        char* command = strtok(buffer, ",");
-        char* value_str = strtok(NULL, ",");
+          // コマンドと値をカンマで分割 (strtokはバッファを直接変更するのでコピーは不要)
+          char* command = strtok(recv_buffer, ",");
+          char* value_str = strtok(NULL, ",");
 
-        // コマンドと値が両方あれば処理を実行
-        if (command != NULL && value_str != NULL) {
-          float value = atof(value_str);
+          if (command != NULL && value_str != NULL) {
+            float value = atof(value_str);
 
-          // コマンドに応じた関数を呼び出し
-          if (strcmp(command, "up") == 0) move_forward(value);
-          else if (strcmp(command, "down") == 0) move_backward(value);
-          else if (strcmp(command, "right") == 0) move_right(value);
-          else if (strcmp(command, "left") == 0) move_left(value);
-          else if (strcmp(command, "pick") == 0) pick();
-          else if (strcmp(command, "drop") == 0) drop();
-          else Serial.println("Unknown command");
+            if (strcmp(command, "up") == 0) move_forward(value);
+            else if (strcmp(command, "down") == 0) move_backward(value);
+            else if (strcmp(command, "right") == 0) move_right(value);
+            else if (strcmp(command, "left") == 0) move_left(value);
+            else if (strcmp(command, "pick") == 0) pick();
+            else if (strcmp(command, "drop") == 0) drop();
+            else Serial.println("Unknown command");
+            
+            Serial.println("Action complete. Sending 'done'.");
+            client.println("done");
+          } else {
+            Serial.println("Invalid packet format. Ignoring.");
+            client.println("error: invalid packet");
+          }
           
-          // 処理完了をPCに通知
-          Serial.println("Action complete. Sending 'done'.");
-          client.println("done");
-        } else {
-          Serial.println("Invalid packet format. Ignoring.");
-          // 不正なパケットでも応答を返し、PC側が待ち続けないようにする
-          client.println("error: invalid packet");
+          // 次のコマンド受信のためにバッファインデックスをリセット
+          buffer_index = 0; 
+          
+        } else if (c >= ' ') { // 改行以外の表示可能文字のみバッファに追加
+          // バッファオーバーフローを防ぐ
+          if (buffer_index < sizeof(recv_buffer) - 1) {
+            recv_buffer[buffer_index++] = c;
+          }
         }
       }
-      // client.available() が false の場合は、次のループで再度チェックする（待機状態）
     }
     
-    // whileループを抜けたら、クライアントが切断したことを意味する
-    // リソースを解放する
     client.stop();
     Serial.println("Client disconnected. Waiting for new connection...");
   }
