@@ -4,7 +4,6 @@ import math
 from enum import Enum, auto
 import time
 
-# robot_controllerは別途実装されているという前提
 from .robot_controller import RobotController
 
 
@@ -61,6 +60,7 @@ class ActionPlanner:
         # ターゲットロック機能のための変数
         self.target_locked = False
         self.locked_target_position = None
+        self.locked_target_radius_px = 10 # <--- ロックしたターゲットの描画用半径
 
         print("ActionPlanner: Initialized for synchronous control.")
 
@@ -107,6 +107,26 @@ class ActionPlanner:
                 nearest_ball = ball
         
         return nearest_ball
+
+    def get_target_info(self):
+        """
+        main.pyの描画ループに現在のターゲット情報を渡す。
+        """
+        if self.target_locked and self.locked_target_position is not None:
+            # ターゲットがロックされている場合
+            return {
+                'locked': True,
+                'position_3d': self.locked_target_position,
+                'radius_px': self.locked_target_radius_px
+            }
+        elif self.target_ball is not None:
+            # ターゲットはあるが、まだロックされていない場合
+            return {
+                'locked': False,
+                'name': self.target_ball.get('name')
+            }
+        # ターゲットが何もない場合
+        return None
 
     def plan_and_execute(self):
         """
@@ -156,7 +176,9 @@ class ActionPlanner:
                 if abs(robot_x - target_pos[0]) < self.TARGET_LOCK_DISTANCE_X:
                     self.target_locked = True
                     self.locked_target_position = target_pos
-                    print(f">>> TARGET LOCKED on {self.target_ball['name']} at ({target_pos[0]:.1f}, {target_pos[1]:.1f}) <<<")
+                    # <--- ロック時に描画用の半径も保存 ---
+                    self.locked_target_radius_px = self.target_ball.get('radius_px', 20) # デフォルト値20
+                    print(f">>> TARGET LOCKED on {self.target_ball['name']} <<<")
 
             # ステップ3: 現在の状態に応じた移動の実行
             if self.state == self.State.MOVING_TO_BALL_Y:

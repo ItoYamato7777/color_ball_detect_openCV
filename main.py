@@ -3,8 +3,9 @@
 import numpy as np
 import cv2
 import time
-import threading # <--- 追加: マルチスレッド機能のインポート
-import copy      # <--- 追加: 安全なデータコピーのため
+import threading
+import copy
+
 
 from module.camera_manager import CameraManager
 from module.world_coordinate_system import WorldCoordinateSystem
@@ -130,7 +131,6 @@ class VisionSystem:
         print("VisionSystem: 全てのモジュールの初期化が完了しました。")
 
     def _handle_key_input(self, key, current_frame_for_world_setup):
-        # (このメソッドは変更なし)
         if key == ord('q'):
             print("'q'キーが押されました。プログラムを終了します。")
             return True
@@ -139,9 +139,53 @@ class VisionSystem:
             self.world_coordinate_system.establish_world_frame(current_frame_for_world_setup)
         return False
 
+    # <--- ターゲットボールを強調描画するメソッド
+    def _draw_target_highlight(self, frame, balls_info_with_world):
+        """
+        ActionPlannerから現在のターゲット情報を取得し、画面に白色の丸枠を描画する。
+        """
+        target_info = self.action_planner.get_target_info()
+        if target_info is None:
+            return # ターゲットがなければ何もしない
+
+        highlight_color = (255, 255, 255) # 白色
+        highlight_thickness = 3
+
+        if target_info['locked']:
+            # --- ターゲットロック時の描画 ---
+            # 3D座標を2D画面座標に投影する
+            pos_3d = target_info['position_3d']
+            radius = int(target_info['radius_px'])
+            
+            # projectPointsには (1,3) のNumpy配列が必要
+            obj_points = np.array([pos_3d], dtype=np.float32)
+            
+            rvec, tvec = self.world_coordinate_system.rvec_w2c, self.world_coordinate_system.tvec_w2c
+            if rvec is not None and tvec is not None:
+                projected_pts, _ = cv2.projectPoints(obj_points, rvec, tvec, self.mtx_calib, self.dist_calib)
+                if projected_pts is not None:
+                    center_2d = tuple(map(int, projected_pts[0][0]))
+                    cv2.circle(frame, center_2d, radius, highlight_color, highlight_thickness)
+        else:
+            # --- 未ロック時の描画 ---
+            target_name = target_info.get('name')
+            if target_name:
+                # 検出されたボールリストから名前でターゲットを探す
+                for ball in balls_info_with_world:
+                    if ball.get('name') == target_name:
+                        center_uv = ball.get('center_uv')
+                        radius = int(ball.get('radius_px', 20))
+                        if center_uv:
+                            cv2.circle(frame, center_uv, radius, highlight_color, highlight_thickness)
+                        break # 見つけたらループを抜ける
+        
+        return frame
+
+
     def _process_frame(self, frame):
-        # (このメソッドは変更なし)
+        """単一フレームに対して全ての画像処理とターゲットの強調描画を実行する"""
         processed_frame = frame.copy()
+        
         processed_frame, detected_balls_info_2d = self.color_ball_detector.detect_and_draw_balls(processed_frame)
         processed_frame, detected_markers_info_cam = self.aruco_detector.detect_and_draw_markers(processed_frame)
         processed_frame = self.world_coordinate_system.draw_world_axes(processed_frame)
@@ -169,11 +213,13 @@ class VisionSystem:
                 detected_markers_info_with_world.append(current_marker_info)
         processed_frame = self.aruco_world_translator.draw_world_pose_on_frame(
             processed_frame, detected_markers_info_with_world)
-        
+        # <--- ターゲット強調描画処理を呼び出す ---
+        processed_frame = self._draw_target_highlight(processed_frame, detected_balls_info_with_world)
+
         return processed_frame, detected_markers_info_with_world, detected_balls_info_with_world
 
     def run(self):
-        # --- 修正: メインループをマルチスレッド対応に変更 ---
+        # --- メインループをマルチスレッド対応に変更 ---
         if not self.camera_manager.is_opened():
             print("エラー: カメラが正常に開かれていないため、実行を中止します。")
             return
