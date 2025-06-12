@@ -234,8 +234,7 @@ class VisionSystem:
 
 if __name__ == "__main__":
     try:
-        # ご自身の環境に合わせてcamera_idを調整してください (例: 0 or 1)
-        vision_system = VisionSystem(camera_id=0, frame_width=640, frame_height=480)
+        vision_system = VisionSystem(camera_id=1, frame_width=640, frame_height=480)
         vision_system.run()
     except IOError as e:
         print(f"カメラ関連のエラー: {e}")
