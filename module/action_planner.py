@@ -31,18 +31,18 @@ class ActionPlanner:
         """
         # --- 制御用パラメータ・定数 ---
         self.GOAL_POSITION = {'x': 20.0, 'y': 0.0}   # ゴールの座標(cm単位) ※要調整
-        self.PICKUP_OFFSET_X = 85.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
+        self.PICKUP_OFFSET_X = 125.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
         self.PICKUP_OFFSET_Y = 0.0
         self.POSITION_TOLERANCE = 20.0               # 座標合わせの許容誤差(cm)
         # Proportional-Control Gain: 残り距離のうち、一度にどれだけの割合を進むかを決める係数 (0.0-1.0)
         self.MOVE_PROPORTIONAL_GAIN = 0.6
         # move_coefficient 移動距離の比例係数
         self.move_coefficient = 0.25
-        self.MAX_BALL_CAPACITY = 3  # ロボットが保持できるボールの最大数
+        self.MAX_BALL_CAPACITY = 2  # ロボットが保持できるボールの最大数
         # Dynamic Interval: 移動距離に応じて次のコマンドまでの待機時間を動的に変更するための係数
         self.MIN_COMMAND_INTERVAL = 0.75  # 待機時間（秒）の最小値
         self.MAX_COMMAND_INTERVAL = 2.0   # 待機時間（秒）の最大値
-        self.INTERVAL_TIME_GAIN = 0.15    # 移動距離(cm)を待機時間(秒)に変換する係数 (例: 10cm移動 -> 0.5s待機)
+        self.INTERVAL_TIME_GAIN = 0.25    # 移動距離(cm)を待機時間(秒)に変換する係数 (例: 10cm移動 -> 0.5s待機)
         
         self.TARGET_LOCK_DISTANCE_X = 100.0  # <--- ターゲットをロックするX軸距離(mm)
 
