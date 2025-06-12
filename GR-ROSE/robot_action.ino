@@ -132,7 +132,10 @@ void loop() {
           else if (strcmp(command, "down") == 0) move_backward(value);
           else if (strcmp(command, "right") == 0) move_right(value);
           else if (strcmp(command, "left") == 0) move_left(value);
-          else if (strcmp(command, "pick") == 0) pick();
+          else if (strcmp(command, "pick") == 0) {
+            Serial.println("Action: pick");
+            pick();
+          }
           else if (strcmp(command, "drop") == 0) drop();
           else Serial.println("Unknown command");
           
