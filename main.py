@@ -146,7 +146,7 @@ class VisionSystem:
         """
         target_info = self.action_planner.get_target_info()
         if target_info is None:
-            return # ターゲットがなければ何もしない
+            return frame
 
         highlight_color = (255, 255, 255) # 白色
         highlight_thickness = 3

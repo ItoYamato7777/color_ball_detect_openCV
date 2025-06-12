@@ -55,10 +55,10 @@ class RobotController:
         self.execute_and_wait(direction, distance_cm)
 
     def pick_ball(self):
-        self.execute_and_wait("pick", 0)
+        self.execute_and_wait("pick", 0.01)
 
     def drop_ball(self):
-        self.execute_and_wait("drop", 0)
+        self.execute_and_wait("drop", 0.01)
 
     def close(self):
         # 接続を維持しないモデルになったため、このメソッドは不要になるが、
