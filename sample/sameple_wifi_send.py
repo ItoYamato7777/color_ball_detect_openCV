@@ -2,7 +2,7 @@ import socket
 import math
 import time
 
-UDP_IP = "192.168.3.73"  #GR-ROSEのIPアドレス
+UDP_IP = "192.168.3.109"  #GR-ROSEのIPアドレス
 UDP_PORT = 12345 #ポート番号 GR-ROSE側と揃える
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
