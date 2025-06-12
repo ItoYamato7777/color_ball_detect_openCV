@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <ICS.h>
 #include <WiFiEsp.h>
-#include <WiFiEspServer.h> // <--- UDPから変更
+#include <WiFiEspServer.h>
 
 // --- 定数定義 ---
 #define TCP_PORT 12345
@@ -19,7 +19,7 @@ char pass[] = "zutt0issy0";
 #define MOVE_SPEED 100
 
 // --- グローバル変数 ---
-WiFiEspServer server(TCP_PORT); // <--- TCPサーバーオブジェクト
+WiFiEspServer server(TCP_PORT);
 IcsController ICS1(Serial1);
 IcsController ICS3(Serial3);
 IcsController ICS4(Serial4);
@@ -50,7 +50,7 @@ void setup() {
     delay(5000);
   }
   
-  server.begin(); // <--- TCPサーバーを開始
+  server.begin();
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
@@ -100,64 +100,70 @@ void setup() {
   krs_setposition(&R_servo[2], -2);
 
   delay(1000);
-  Serial.println("Robot setup complete. Waiting for commands...");
+  Serial.println("Robot setup complete. Waiting for new connection...");
 }
 
-// --- メインループ ---
+// --- メインループ
 void loop() {
-  WiFiEspClient client = server.available(); // PCからの接続を待つ
+  // 新しいクライアント(PC)からの接続を待つ
+  WiFiEspClient client = server.available();
 
   // クライアントが接続してきた場合
   if (client) {
-    Serial.println("Client connected.");
+    Serial.println("Client connected. Entering command loop...");
     
-    // <--- 1コマンドのみを処理し、接続を維持しない ---
-    bool received_command = false;
-    while (client.connected() && !received_command) {
+    // クライアントが接続している間、コマンドを受け付け続ける
+    while (client.connected()) {
+      // クライアントからデータが送信されてきたか確認
       if (client.available()) {
+        // '\n' (改行) までを1つのコマンドとして読み込む
         String line = client.readStringUntil('\n');
         Serial.print("Received: ");
         Serial.println(line);
 
+        // 読み込んだ文字列を解析バッファにコピー
         char buffer[32];
         line.toCharArray(buffer, sizeof(buffer));
 
+        // コマンドと値をカンマで分割
         char* command = strtok(buffer, ",");
         char* value_str = strtok(NULL, ",");
 
+        // コマンドと値が両方あれば処理を実行
         if (command != NULL && value_str != NULL) {
           float value = atof(value_str);
 
+          // コマンドに応じた関数を呼び出し
           if (strcmp(command, "up") == 0) move_forward(value);
           else if (strcmp(command, "down") == 0) move_backward(value);
           else if (strcmp(command, "right") == 0) move_right(value);
           else if (strcmp(command, "left") == 0) move_left(value);
-          else if (strcmp(command, "pick") == 0) {
-            Serial.println("Action: pick");
-            pick();
-          }
+          else if (strcmp(command, "pick") == 0) pick();
           else if (strcmp(command, "drop") == 0) drop();
           else Serial.println("Unknown command");
           
+          // 処理完了をPCに通知
           Serial.println("Action complete. Sending 'done'.");
-          client.println("done"); 
+          client.println("done");
         } else {
-          Serial.println("Invalid packet format");
+          Serial.println("Invalid packet format. Ignoring.");
+          // 不正なパケットでも応答を返し、PC側が待ち続けないようにする
+          client.println("error: invalid packet");
         }
-        
-        received_command = true; // 1コマンド処理したのでフラグを立てる
       }
+      // client.available() が false の場合は、次のループで再度チェックする（待機状態）
     }
     
-    // 処理が終わったらクライアントを切断
+    // whileループを抜けたら、クライアントが切断したことを意味する
+    // リソースを解放する
     client.stop();
-    Serial.println("Client disconnected.");
+    Serial.println("Client disconnected. Waiting for new connection...");
   }
 }
 
 // --- 各動作の関数 ---
 
-void krs_setposition(IcsServo* servo, float angle){ //
+void krs_setposition(IcsServo* servo, float angle){
   int pos = map(angle, SERVO_MIN, SERVO_MAX, KRS_MIN, KRS_MAX);
   if(pos >= KRS_MIN && pos <= KRS_MAX){
     servo->setPosition(pos);
@@ -167,19 +173,19 @@ void krs_setposition(IcsServo* servo, float angle){ //
 
 // 前進
 void move_forward(float value) {
-  int duration_ms = value * 100; // PCからの数値(cm)を駆動時間(ms)に変換
+  int duration_ms = value * 100;
   Serial.print("Action: move_forward for ");
   Serial.print(duration_ms);
   Serial.println(" ms");
   
-  krs_setposition(&F_servo[0], 0); //
-  krs_setposition(&R_servo[0], 0); //
+  krs_setposition(&F_servo[0], 0);
+  krs_setposition(&R_servo[0], 0);
   delay(100);
-  krs_setposition(&F_servo[1], MOVE_SPEED); //
-  krs_setposition(&R_servo[1], MOVE_SPEED); //
-  delay(duration_ms); // 指示された時間だけ回転
-  krs_setposition(&F_servo[1], 0); //
-  krs_setposition(&R_servo[1], 0); //
+  krs_setposition(&F_servo[1], MOVE_SPEED);
+  krs_setposition(&R_servo[1], MOVE_SPEED);
+  delay(duration_ms);
+  krs_setposition(&F_servo[1], 0);
+  krs_setposition(&R_servo[1], 0);
 }
 
 // 後退
@@ -189,14 +195,14 @@ void move_backward(float value) {
   Serial.print(duration_ms);
   Serial.println(" ms");
 
-  krs_setposition(&F_servo[0], 0); //
-  krs_setposition(&R_servo[0], 0); //
+  krs_setposition(&F_servo[0], 0);
+  krs_setposition(&R_servo[0], 0);
   delay(100);
-  krs_setposition(&F_servo[1], -MOVE_SPEED); //
-  krs_setposition(&R_servo[1], -MOVE_SPEED); //
+  krs_setposition(&F_servo[1], -MOVE_SPEED);
+  krs_setposition(&R_servo[1], -MOVE_SPEED);
   delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); //
-  krs_setposition(&R_servo[1], 0); //
+  krs_setposition(&F_servo[1], 0);
+  krs_setposition(&R_servo[1], 0);
 }
 
 // 右移動
@@ -206,14 +212,14 @@ void move_right(float value) {
   Serial.print(duration_ms);
   Serial.println(" ms");
   
-  krs_setposition(&F_servo[0], -90); //
-  krs_setposition(&R_servo[0], -90); //
-  delay(200); // 向きが変わるのを待つ
-  krs_setposition(&F_servo[1], MOVE_SPEED); //
-  krs_setposition(&R_servo[1], MOVE_SPEED); //
+  krs_setposition(&F_servo[0], -90);
+  krs_setposition(&R_servo[0], -90);
+  delay(200);
+  krs_setposition(&F_servo[1], MOVE_SPEED);
+  krs_setposition(&R_servo[1], MOVE_SPEED);
   delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); //
-  krs_setposition(&R_servo[1], 0); //
+  krs_setposition(&F_servo[1], 0);
+  krs_setposition(&R_servo[1], 0);
 }
 
 // 左移動
@@ -223,18 +229,18 @@ void move_left(float value) {
   Serial.print(duration_ms);
   Serial.println(" ms");
 
-  krs_setposition(&F_servo[0], 90); //
-  krs_setposition(&R_servo[0], 90); //
-  delay(200); // 向きが変わるのを待つ
-  krs_setposition(&F_servo[1], MOVE_SPEED); //
-  krs_setposition(&R_servo[1], MOVE_SPEED); //
+  krs_setposition(&F_servo[0], 90);
+  krs_setposition(&R_servo[0], 90);
+  delay(200);
+  krs_setposition(&F_servo[1], MOVE_SPEED);
+  krs_setposition(&R_servo[1], MOVE_SPEED);
   delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); //
-  krs_setposition(&R_servo[1], 0); //
+  krs_setposition(&F_servo[1], 0);
+  krs_setposition(&R_servo[1], 0);
 }
 
 // ボールを拾う
-void pick() { //
+void pick() {
   Serial.println("Action: pick");
   krs_setposition(&C_servo[4], 45);
   krs_setposition(&C_servo[3], 45);
@@ -252,7 +258,7 @@ void pick() { //
 }
 
 // ボールを落とす
-void drop() { //
+void drop() {
   Serial.println("Action: drop");
   krs_setposition(&R_servo[2], 90);
   delay(2000);

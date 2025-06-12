@@ -62,15 +62,19 @@ class RobotControlThread(threading.Thread):
         """スレッドのメイン処理。停止イベントがセットされるまでループする。"""
         print("[RobotControlThread] Started.")
         while not self._stop_event.is_set():
-            # 共有メモリから最新の情報を安全に取得
-            with self.lock:
-                robot_pose = copy.deepcopy(self.shared_state.get('robot_pose'))
-                balls_info = copy.deepcopy(self.shared_state.get('balls_info'))
+            try:
+                # 共有メモリから最新の情報を安全に取得
+                with self.lock:
+                    robot_pose = copy.deepcopy(self.shared_state.get('robot_pose'))
+                    balls_info = copy.deepcopy(self.shared_state.get('balls_info'))
+                
+                # 取得した情報でプランナーの状態を更新
+                self.action_planner.update_world_state(robot_pose, balls_info)
+                # 行動計画を実行（この呼び出しは同期的で、ロボットの動作完了までここで待機する）
+                self.action_planner.plan_and_execute()
             
-            # 取得した情報でプランナーの状態を更新
-            self.action_planner.update_world_state(robot_pose, balls_info)
-            # 行動計画を実行（この呼び出しは同期的で、ロボットの動作完了までここで待機する）
-            self.action_planner.plan_and_execute()
+            except e:
+                print(f"[RobotControlThread] WARN: Communication error occurred: {e}. Retrying...")
             
             # CPUを過剰に消費しないように、短いスリープを入れる
             time.sleep(0.1) 
