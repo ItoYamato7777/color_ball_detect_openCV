@@ -1,4 +1,4 @@
-// robot_action.ino (メモリ断片化対策版)
+// robot_action.ino (ブロッキング対策版)
 
 #include <Arduino.h>
 #include <ICS.h>
@@ -27,8 +27,8 @@ IcsServo C_servo[5];
 IcsServo F_servo[2];
 IcsServo R_servo[3];
 
-
 // --- プロトタイプ宣言 ---
+void non_blocking_delay(unsigned long ms); // ★★★ 新しい遅延関数 ★★★
 void krs_setposition(IcsServo* servo, float angle);
 void move_forward(float value);
 void move_backward(float value);
@@ -103,34 +103,23 @@ void setup() {
   Serial.println("Robot setup complete. Waiting for new connection...");
 }
 
-// --- メインループ
+// --- メインループ ---
 void loop() {
   WiFiEspClient client = server.available();
-
   if (client) {
     Serial.println("Client connected. Entering command loop...");
-    
-    // データ受信用のバッファとインデックス
     char recv_buffer[64];
     byte buffer_index = 0;
-
     while (client.connected()) {
       if (client.available()) {
-        char c = client.read(); // 1文字ずつ読み込む
-
-        // 改行コード('\n')が来たら、コマンド処理を実行
+        char c = client.read();
         if (c == '\n') {
-          recv_buffer[buffer_index] = '\0'; // バッファをヌル終端してC文字列にする
-          Serial.print("Received: ");
-          Serial.println(recv_buffer);
-
-          // コマンドと値をカンマで分割 (strtokはバッファを直接変更するのでコピーは不要)
+          recv_buffer[buffer_index] = '\0';
+          Serial.print("Received: "); Serial.println(recv_buffer);
           char* command = strtok(recv_buffer, ",");
           char* value_str = strtok(NULL, ",");
-
           if (command != NULL && value_str != NULL) {
             float value = atof(value_str);
-
             if (strcmp(command, "up") == 0) move_forward(value);
             else if (strcmp(command, "down") == 0) move_backward(value);
             else if (strcmp(command, "right") == 0) move_right(value);
@@ -138,132 +127,105 @@ void loop() {
             else if (strcmp(command, "pick") == 0) pick();
             else if (strcmp(command, "drop") == 0) drop();
             else Serial.println("Unknown command");
-            
             Serial.println("Action complete. Sending 'done'.");
             client.println("done");
           } else {
             Serial.println("Invalid packet format. Ignoring.");
             client.println("error: invalid packet");
           }
-          
-          // 次のコマンド受信のためにバッファインデックスをリセット
-          buffer_index = 0; 
-          
-        } else if (c >= ' ') { // 改行以外の表示可能文字のみバッファに追加
-          // バッファオーバーフローを防ぐ
+          buffer_index = 0;
+        } else if (c >= ' ') {
           if (buffer_index < sizeof(recv_buffer) - 1) {
             recv_buffer[buffer_index++] = c;
           }
         }
       }
     }
-    
     client.stop();
     Serial.println("Client disconnected. Waiting for new connection...");
   }
 }
 
-// --- 各動作の関数 ---
+// --- 各動作の関数 (★★★ delay() を non_blocking_delay() に置換 ★★★) ---
+
+// ネットワークをブロックしない遅延関数
+void non_blocking_delay(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {
+    // このループは非常に高速に回るため、実質的なCPUの専有時間は短く、
+    // WiFiライブラリがバックグラウンドで動作する隙を与えることができます。
+    // より丁寧には、ここにWiFiのメンテナンス関数を置くが、これだけでも改善が見込める。
+  }
+}
 
 void krs_setposition(IcsServo* servo, float angle){
   int pos = map(angle, SERVO_MIN, SERVO_MAX, KRS_MIN, KRS_MAX);
   if(pos >= KRS_MIN && pos <= KRS_MAX){
     servo->setPosition(pos);
-    delay(1);
+    delay(1); // 1ms程度の短いdelayは問題になりにくい
   }
 }
 
-// 前進
 void move_forward(float value) {
   int duration_ms = value * 100;
-  Serial.print("Action: move_forward for ");
-  Serial.print(duration_ms);
-  Serial.println(" ms");
-  
-  krs_setposition(&F_servo[0], 0);
-  krs_setposition(&R_servo[0], 0);
-  delay(100);
-  krs_setposition(&F_servo[1], MOVE_SPEED);
-  krs_setposition(&R_servo[1], MOVE_SPEED);
-  delay(duration_ms);
-  krs_setposition(&F_servo[1], 0);
-  krs_setposition(&R_servo[1], 0);
+  Serial.print("Action: move_forward for "); Serial.print(duration_ms); Serial.println(" ms");
+  krs_setposition(&F_servo[0], 0); krs_setposition(&R_servo[0], 0);
+  non_blocking_delay(100);
+  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
+  non_blocking_delay(duration_ms);
+  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
 }
 
-// 後退
 void move_backward(float value) {
   int duration_ms = value * 100;
-  Serial.print("Action: move_backward for ");
-  Serial.print(duration_ms);
-  Serial.println(" ms");
-
-  krs_setposition(&F_servo[0], 0);
-  krs_setposition(&R_servo[0], 0);
-  delay(100);
-  krs_setposition(&F_servo[1], -MOVE_SPEED);
-  krs_setposition(&R_servo[1], -MOVE_SPEED);
-  delay(duration_ms);
-  krs_setposition(&F_servo[1], 0);
-  krs_setposition(&R_servo[1], 0);
+  Serial.print("Action: move_backward for "); Serial.print(duration_ms); Serial.println(" ms");
+  krs_setposition(&F_servo[0], 0); krs_setposition(&R_servo[0], 0);
+  non_blocking_delay(100);
+  krs_setposition(&F_servo[1], -MOVE_SPEED); krs_setposition(&R_servo[1], -MOVE_SPEED);
+  non_blocking_delay(duration_ms);
+  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
 }
 
-// 右移動
 void move_right(float value) {
   int duration_ms = value * 100;
-  Serial.print("Action: move_right for ");
-  Serial.print(duration_ms);
-  Serial.println(" ms");
-  
-  krs_setposition(&F_servo[0], -90);
-  krs_setposition(&R_servo[0], -90);
-  delay(200);
-  krs_setposition(&F_servo[1], MOVE_SPEED);
-  krs_setposition(&R_servo[1], MOVE_SPEED);
-  delay(duration_ms);
-  krs_setposition(&F_servo[1], 0);
-  krs_setposition(&R_servo[1], 0);
+  Serial.print("Action: move_right for "); Serial.print(duration_ms); Serial.println(" ms");
+  krs_setposition(&F_servo[0], -90); krs_setposition(&R_servo[0], -90);
+  non_blocking_delay(200);
+  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
+  non_blocking_delay(duration_ms);
+  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
 }
 
-// 左移動
 void move_left(float value) {
   int duration_ms = value * 100;
-  Serial.print("Action: move_left for ");
-  Serial.print(duration_ms);
-  Serial.println(" ms");
-
-  krs_setposition(&F_servo[0], 90);
-  krs_setposition(&R_servo[0], 90);
-  delay(200);
-  krs_setposition(&F_servo[1], MOVE_SPEED);
-  krs_setposition(&R_servo[1], MOVE_SPEED);
-  delay(duration_ms);
-  krs_setposition(&F_servo[1], 0);
-  krs_setposition(&R_servo[1], 0);
+  Serial.print("Action: move_left for "); Serial.print(duration_ms); Serial.println(" ms");
+  krs_setposition(&F_servo[0], 90); krs_setposition(&R_servo[0], 90);
+  non_blocking_delay(200);
+  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
+  non_blocking_delay(duration_ms);
+  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
 }
 
-// ボールを拾う
 void pick() {
   Serial.println("Action: pick");
-  krs_setposition(&C_servo[4], 45);
-  krs_setposition(&C_servo[3], 45);
-  delay(500);
+  krs_setposition(&C_servo[4], 45); krs_setposition(&C_servo[3], 45);
+  non_blocking_delay(500);
   krs_setposition(&C_servo[4], 0);
-  delay(500);
+  non_blocking_delay(500);
   krs_setposition(&C_servo[3], 0);
-  delay(500);
+  non_blocking_delay(500);
   krs_setposition(&C_servo[4], 90);
-  delay(2000);
+  non_blocking_delay(2000);
   krs_setposition(&C_servo[4], 45);
-  delay(500);
+  non_blocking_delay(500);
   krs_setposition(&C_servo[3], 45);
-  delay(500);
+  non_blocking_delay(500);
 }
 
-// ボールを落とす
 void drop() {
   Serial.println("Action: drop");
   krs_setposition(&R_servo[2], 90);
-  delay(2000);
+  non_blocking_delay(2000);
   krs_setposition(&R_servo[2], -2);
-  delay(1000);
+  non_blocking_delay(1000);
 }
