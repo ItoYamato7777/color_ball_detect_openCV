@@ -29,48 +29,54 @@ class ActionPlanner:
         """
         ActionPlannerを初期化します。
         """
-        # --- 制御用パラメータ・定数 ---
-        self.GOAL_POSITION = {'x': 20.0, 'y': 0.0}   # ゴールの座標(cm単位) ※要調整
-        self.PICKUP_OFFSET_X = 125.0                 # <--- ボールを拾うために手前で止まるオフセット(X軸方向)
-        self.PICKUP_OFFSET_Y = 0.0
-        self.POSITION_TOLERANCE = 20.0               # 座標合わせの許容誤差(cm)
+        # --- 制御用パラメータ・定数 (ここで動作を微調整します) ---
+
+        # ゴール（カゴ）の座標 (mm単位)
+        self.GOAL_POSITION = {'x': 200.0, 'y': 0.0}
+        
+        # ボールを拾う際の最終停止位置のオフセット (mm単位)
+        self.PICKUP_OFFSET_X = 85.0   # 前後方向のオフセット
+        self.PICKUP_OFFSET_Y = 0.0    # 左右方向のオフセット
+        
+        # 座標が合ったとみなす許容誤差 (mm単位)
+        self.POSITION_TOLERANCE = 20.0
+        
         # Proportional-Control Gain: 残り距離のうち、一度にどれだけの割合を進むかを決める係数 (0.0-1.0)
         self.MOVE_PROPORTIONAL_GAIN = 0.6
-        # move_coefficient 移動距離の比例係数
-        self.move_coefficient = 0.25
-        self.MAX_BALL_CAPACITY = 2  # ロボットが保持できるボールの最大数
-        # Dynamic Interval: 移動距離に応じて次のコマンドまでの待機時間を動的に変更するための係数
-        self.MIN_COMMAND_INTERVAL = 0.75  # 待機時間（秒）の最小値
-        self.MAX_COMMAND_INTERVAL = 2.0   # 待機時間（秒）の最大値
-        self.INTERVAL_TIME_GAIN = 0.25    # 移動距離(cm)を待機時間(秒)に変換する係数 (例: 10cm移動 -> 0.5s待機)
         
-        self.TARGET_LOCK_DISTANCE_X = 100.0  # <--- ターゲットをロックするX軸距離(mm)
+        # 一度に保持できるボールの最大数
+        self.MAX_BALL_CAPACITY = 3
+        
+        # ターゲットをロックするX軸方向の距離 (mm単位)
+        self.TARGET_LOCK_DISTANCE_X = 100.0
 
-        # --- 内部状態 ---
+        # --- 内部状態の初期化 ---
         self.robot_controller = robot_controller
         self.state = self.State.SEARCHING_BALL
         self.target_ball = None
         self.balls_collected_count = 0
         self.robot_pose = None
         self.balls_info = []
-        self.last_command_time = 0
-        self.dynamic_interval = self.MAX_COMMAND_INTERVAL
         
-        self.target_locked = False           # <--- ターゲットロック状態フラグ
-        self.locked_target_position = None   # <--- ロックしたターゲットの座標
+        # ターゲットロック機能のための変数
+        self.target_locked = False
+        self.locked_target_position = None
 
-        print("ActionPlanner: Advanced targeting enabled.")
-        print(f"  - Target Lock Distance: {self.TARGET_LOCK_DISTANCE_X}mm")
-
+        print("ActionPlanner: Initialized for synchronous control.")
 
     def update_world_state(self, robot_pose: dict, balls_info: list):
+        """
+        VisionSystemから最新の世界情報を更新します。
+        このメソッドはmain.pyのループから毎フレーム呼び出されます。
+        """
         self.robot_pose = robot_pose
         self.balls_info = balls_info
 
     def _find_nearest_ball(self):
         """
-        ロボットの前方にある最も近いボールを見つけてターゲットに設定する。
+        ロボットの「前方」にあるボールの中から、最も近いものを探します。
         """
+        # ロボットまたはボールの情報がなければ探索しない
         if not self.robot_pose or not self.balls_info:
             return None
             
@@ -78,7 +84,7 @@ class ActionPlanner:
         robot_x = robot_pos_vec[0, 0]
         robot_y = robot_pos_vec[1, 0]
 
-        # <--- ロボットより前方にあるボールのみを候補とする ---
+        # ロボットより前方(X座標が大きい)にあるボールのみを候補リストに入れる
         forward_balls = []
         for ball in self.balls_info:
             if ball.get('world_xyz') is not None:
@@ -86,9 +92,11 @@ class ActionPlanner:
                 if ball_x > robot_x:
                     forward_balls.append(ball)
         
+        # 前方にボールがなければNoneを返す
         if not forward_balls:
             return None
 
+        # 候補の中から最短距離のボールを見つける
         nearest_ball = None
         min_dist = float('inf')
         for ball in forward_balls:
@@ -103,36 +111,41 @@ class ActionPlanner:
     def plan_and_execute(self):
         """
         現在の状態に基づいて行動計画を立て、実行します。
+        同期通信のため、このメソッド内のrobot_controllerの各命令は、
+        ロボットの動作が完了するまで次の処理に進みません。
         """
         if self.robot_pose is None:
             return
 
         current_robot_pos_vec = self.robot_pose['world_position']
-        current_time = time.time()
-
-        if current_time - self.last_command_time < self.dynamic_interval:
-            return
 
         # --- ステートマシン ---
         if self.state == self.State.SEARCHING_BALL:
-            self.target_locked = False           # <--- 探索開始時にロックを解除
-            self.locked_target_position = None   # <--- 座標をリセット
+            # 探索開始時にターゲットロックを解除
+            self.target_locked = False
+            self.locked_target_position = None
+            
+            # 新しいターゲットボールを探す
             self.target_ball = self._find_nearest_ball()
+            
             if self.target_ball:
+                # ターゲットが見つかったら、Y軸（左右）の調整状態に移行
                 self.state = self.State.MOVING_TO_BALL_Y
-                self.dynamic_interval = 0
             else:
+                # 見つからなければ待機状態へ
                 self.state = self.State.WAITING
         
         elif self.state == self.State.MOVING_TO_BALL_Y or self.state == self.State.MOVING_TO_BALL_X:
-            # <--- ボールへの移動ロジックを統合・更新 ---
-            
-            # ステップ1: ターゲットの決定（ロックされていなければ再探索）
+            # --- ボールへの移動ロジック ---
+
+            # ステップ1: 目標座標の決定
             if self.target_locked:
+                # ターゲットがロックされている場合、最後に保存した座標を使い続ける
                 target_pos = self.locked_target_position
             else:
+                # ロックされていなければ、常に最新のボール位置を再探索する
                 new_target = self._find_nearest_ball()
-                if new_target is None:
+                if new_target is None: # 途中で見失ったら待機状態へ
                     self.state = self.State.WAITING
                     return
                 self.target_ball = new_target
@@ -143,113 +156,82 @@ class ActionPlanner:
                 if abs(robot_x - target_pos[0]) < self.TARGET_LOCK_DISTANCE_X:
                     self.target_locked = True
                     self.locked_target_position = target_pos
-                    print(f">>> TARGET LOCKED ON!!!!   {self.target_ball['name']} at ({target_pos[0]:.1f}, {target_pos[1]:.1f}) <<<")
+                    print(f">>> TARGET LOCKED on {self.target_ball['name']} at ({target_pos[0]:.1f}, {target_pos[1]:.1f}) <<<")
 
-            # ステップ3: 現在の状態で移動を実行
+            # ステップ3: 現在の状態に応じた移動の実行
             if self.state == self.State.MOVING_TO_BALL_Y:
-                target_y = target_pos[1] + self.PICKUP_OFFSET_Y
+                # Y軸（左右）の調整
                 robot_y = current_robot_pos_vec[1, 0]
+                target_y = target_pos[1] + self.PICKUP_OFFSET_Y
                 delta_y = target_y - robot_y
+                
                 if abs(delta_y) > self.POSITION_TOLERANCE:
                     distance_to_move_mm = abs(delta_y) * self.MOVE_PROPORTIONAL_GAIN
                     direction = "right" if delta_y > 0 else "left"
                     
-                    # <--- デバッグ情報を表示 ---
                     robot_x = current_robot_pos_vec[0, 0]
                     delta_x_for_display = (target_pos[0] - self.PICKUP_OFFSET_X) - robot_x
                     print(f"  - Target:({target_pos[0]:.1f}, {target_pos[1]:.1f}), Delta:(X:{delta_x_for_display:.1f}, Y:{delta_y:.1f})")
 
                     self.robot_controller.move(direction, distance_to_move_mm)
-                    
-                    distance_cm = distance_to_move_mm / 10.0
-                    calculated_interval = distance_cm * self.INTERVAL_TIME_GAIN
-                    self.dynamic_interval = max(self.MIN_COMMAND_INTERVAL, min(self.MAX_COMMAND_INTERVAL, calculated_interval))
-                    self.last_command_time = current_time
                 else: # Y座標が合ったのでX座標の調整へ
                     self.state = self.State.MOVING_TO_BALL_X
-                    self.dynamic_interval = 0 
             
             elif self.state == self.State.MOVING_TO_BALL_X:
-                target_x = target_pos[0] - self.PICKUP_OFFSET_X
+                # X軸（前後）の調整
                 robot_x = current_robot_pos_vec[0, 0]
+                target_x = target_pos[0] - self.PICKUP_OFFSET_X
                 delta_x = target_x - robot_x
+
                 if abs(delta_x) > self.POSITION_TOLERANCE:
                     distance_to_move_mm = abs(delta_x) * self.MOVE_PROPORTIONAL_GAIN
                     direction = "up" if delta_x > 0 else "down"
 
-                    # <--- デバッグ情報を表示 ---
                     robot_y = current_robot_pos_vec[1, 0]
                     delta_y_for_display = (target_pos[1] + self.PICKUP_OFFSET_Y) - robot_y
                     print(f"  - Target:({target_pos[0]:.1f}, {target_pos[1]:.1f}), Delta:(X:{delta_x:.1f}, Y:{delta_y_for_display:.1f})")
 
                     self.robot_controller.move(direction, distance_to_move_mm)
-
-                    distance_cm = distance_to_move_mm / 10.0
-                    calculated_interval = distance_cm * self.INTERVAL_TIME_GAIN
-                    self.dynamic_interval = max(self.MIN_COMMAND_INTERVAL, min(self.MAX_COMMAND_INTERVAL, calculated_interval))
-                    self.last_command_time = current_time
                 else: # X座標も合ったのでピックアップへ
                     self.state = self.State.PICKING_UP_BALL
-                    self.dynamic_interval = 0
 
-        # (MOVING_TO_GOAL と PICKING_UP/DROPPING は変更なしのため省略)
         elif self.state == self.State.MOVING_TO_GOAL_Y:
-            target_y = self.GOAL_POSITION['y']
             robot_y = current_robot_pos_vec[1, 0]
-            delta_y = target_y - robot_y
+            delta_y = self.GOAL_POSITION['y'] - robot_y
             if abs(delta_y) > self.POSITION_TOLERANCE:
-                distance_to_move_mm = abs(delta_y) * self.MOVE_PROPORTIONAL_GAIN
-                direction = "right" if delta_y > 0 else "left"
-                self.robot_controller.move(direction, distance_to_move_mm)
-
-                distance_cm = distance_to_move_mm / 10.0
-                calculated_interval = distance_cm * self.INTERVAL_TIME_GAIN
-                self.dynamic_interval = max(self.MIN_COMMAND_INTERVAL, min(self.MAX_COMMAND_INTERVAL, calculated_interval))
-                self.last_command_time = current_time
+                self.robot_controller.move("right" if delta_y > 0 else "left", abs(delta_y) * self.MOVE_PROPORTIONAL_GAIN)
             else:
                 self.state = self.State.MOVING_TO_GOAL_X
-                self.dynamic_interval = 0
         
         elif self.state == self.State.MOVING_TO_GOAL_X:
-            target_x = self.GOAL_POSITION['x']
             robot_x = current_robot_pos_vec[0, 0]
-            delta_x = target_x - robot_x
+            delta_x = self.GOAL_POSITION['x'] - robot_x
             if abs(delta_x) > self.POSITION_TOLERANCE:
-                distance_to_move_mm = abs(delta_x) * self.MOVE_PROPORTIONAL_GAIN
-                direction = "up" if delta_x > 0 else "down"
-                self.robot_controller.move(direction, distance_to_move_mm)
-                
-                distance_cm = distance_to_move_mm / 10.0
-                calculated_interval = distance_cm * self.INTERVAL_TIME_GAIN
-                self.dynamic_interval = max(self.MIN_COMMAND_INTERVAL, min(self.MAX_COMMAND_INTERVAL, calculated_interval))
-                self.last_command_time = current_time
+                self.robot_controller.move("up" if delta_x > 0 else "down", abs(delta_x) * self.MOVE_PROPORTIONAL_GAIN)
             else:
                 self.state = self.State.DROPPING_BALL
-                self.dynamic_interval = 0
 
         elif self.state == self.State.PICKING_UP_BALL:
+            print("State: PICKING_UP_BALL")
             self.robot_controller.pick_up_ball()
-            self.last_command_time = current_time
-            self.dynamic_interval = self.MAX_COMMAND_INTERVAL
-            
             self.balls_collected_count += 1
-            if self.target_ball: # target_ballがNoneでないことを確認
+            
+            if self.target_ball:
                 self.balls_info = [b for b in self.balls_info if b['name'] != self.target_ball['name']]
-            self.target_ball = None
-
+            
             if self.balls_collected_count >= self.MAX_BALL_CAPACITY:
                 self.state = self.State.MOVING_TO_GOAL_Y
             else:
                 self.state = self.State.SEARCHING_BALL
 
         elif self.state == self.State.DROPPING_BALL:
+            print("State: DROPPING_BALL")
             self.robot_controller.drop_ball()
-            self.last_command_time = current_time
-            self.dynamic_interval = self.MAX_COMMAND_INTERVAL
-            
             self.balls_collected_count = 0
             self.state = self.State.SEARCHING_BALL
 
         elif self.state == self.State.WAITING:
-            self.dynamic_interval = self.MAX_COMMAND_INTERVAL
-            pass
+            # 待機中は、再びボールが見つかるのを待つため、探索状態に戻る
+            print("State: WAITING... searching again.")
+            self.state = self.State.SEARCHING_BALL
+            time.sleep(1) # 少し待ってから再探索

@@ -5,58 +5,61 @@ import socket
 class RobotController:
     """
     ロボットの物理的な動作を制御するためのクラス。
-    ActionPlannerからの指示をUDP通信でマイコンに送信します。
+    TCP通信を使い、マイコンにコマンドを送信し、動作完了報告を待つ。
     """
-    def __init__(self, ip_address="192.168.3.109", port=12345):
+    def __init__(self, ip_address="192.168.3.73", port=12345, timeout=15.0):
         """
-        RobotControllerを初期化し、UDPソケットを準備します。
-        
-        Args:
-            ip_address (str): ロボットのマイコンのIPアドレス。
-            port (int): UDP通信で使用するポート番号。
+        RobotControllerを初期化し、マイコンとのTCP接続を確立します。
         """
-        self.udp_ip = ip_address
-        self.udp_port = port
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        print(f"[RobotController] Initialized. Sending to {self.udp_ip}:{self.udp_port}")
+        self.tcp_ip = ip_address
+        self.tcp_port = port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.settimeout(timeout) # タイムアウトを設定
 
-    def _send_command(self, command: str, value: float):
+        try:
+            print(f"[RobotController] Connecting to {self.tcp_ip}:{self.tcp_port}...")
+            self.sock.connect((self.tcp_ip, self.tcp_port))
+            print("[RobotController] Connected successfully.")
+        except socket.error as e:
+            print(f"[RobotController] Connection failed: {e}")
+            raise
+
+    def execute_and_wait(self, command: str, value: float):
         """
-        コマンドと値をフォーマットしてマイコンに送信するプライベートメソッド。
-        
-        Args:
-            command (str): マイコンに送るコマンド文字列。
-            value (float): コマンドに付随する数値。
+        コマンドを送信し、マイコンからの完了報告('done')を待つ。
         """
-        message = f"{command},{value:.2f}"
-        self.sock.sendto(message.encode('utf-8'), (self.udp_ip, self.udp_port))
-        print(f"[RobotController] Sent: \"{message}\"")
+        try:
+            message = f"{command},{value:.2f}\n" # 改行コードを追加
+            print(f"[RobotController] Sending command: \"{message.strip()}\"")
+            self.sock.sendall(message.encode('utf-8'))
+
+            # マイコンからの応答を待つ (最大1024バイト)
+            response = self.sock.recv(1024).decode('utf-8').strip()
+            if response == "done":
+                print(f"[RobotController] Received 'done' for command: {command}")
+            else:
+                print(f"[RobotController] WARN: Received unexpected response: {response}")
+
+        except socket.timeout:
+            print("[RobotController] ERROR: Connection timed out. Robot not responding.")
+            raise
+        except socket.error as e:
+            print(f"[RobotController] ERROR: Connection error: {e}")
+            raise
 
     def move(self, direction: str, distance_mm: float):
-        """
-        ロボットを指定された方向に指定された距離だけ移動させます。
-        距離(mm)を距離(cm)に変換し、その数値をマイコンに送信します。
-        マイコン側で、受信した数値 * 100ミリ秒 の時間、モーターを駆動します。
-
-        Args:
-            direction (str): 移動方向 ("up", "down", "right", "left")
-            distance_mm (float): 移動距離 (mm)
-        """
-        # ActionPlannerはmm単位で計算するため、cm単位に変換
         distance_cm = distance_mm / 10.0
-        # distance_cmの値をそのまま送信する
-        self._send_command(direction, distance_cm)
+        self.execute_and_wait(direction, distance_cm)
 
     def pick_up_ball(self):
-        """
-        ボールを拾い上げる動作をマイコンに指示します。
-        """
-        # 動作コマンドには数値を必要としないため、0を送信
-        self._send_command("pick_up", 0)
+        self.execute_and_wait("pick_up", 0)
 
     def drop_ball(self):
+        self.execute_and_wait("drop", 0)
+
+    def close(self):
         """
-        ボールを落とす動作をマイコンに指示します。
+        ソケット接続を閉じる
         """
-        # 動作コマンドには数値を必要としないため、0を送信
-        self._send_command("drop", 0)
+        print("[RobotController] Closing connection.")
+        self.sock.close()

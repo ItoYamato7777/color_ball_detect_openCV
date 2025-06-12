@@ -3,27 +3,24 @@
 #include <Arduino.h>
 #include <ICS.h>
 #include <WiFiEsp.h>
-#include <WiFiEspUdp.h>
+#include <WiFiEspServer.h>
 
 // --- 定数定義 ---
-// Wi-Fi設定
+#define TCP_PORT 12345 // <--- ポート番号
 #define ESP_BAUD 115200
 #define ESP_SERIAL Serial6
-#define UDP_PORT 12345
 char ssid[] = "KXR-wifi_2.4G";
 char pass[] = "zutt0issy0";
 
 // サーボ設定
 #define KRS_MIN 3500
 #define KRS_MAX 11500
-#define KRS_ORG 7500
-#define KRS_FREE 0
 #define SERVO_MIN -135
 #define SERVO_MAX 135
-#define MOVE_SPEED 100 // 前後左右移動時のモーター速度
+#define MOVE_SPEED 100
 
 // --- グローバル変数 ---
-WiFiEspUDP Udp;
+WiFiEspServer server(TCP_PORT); // <--- TCPサーバーオブジェクト
 IcsController ICS1(Serial1);
 IcsController ICS3(Serial3);
 IcsController ICS4(Serial4);
@@ -48,18 +45,20 @@ void setup() {
   // Wi-Fi接続処理
   ESP_SERIAL.begin(ESP_BAUD);
   WiFi.init(&ESP_SERIAL);
+
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print("Connecting to ");
     Serial.println(ssid);
     WiFi.begin(ssid, pass);
     delay(5000); // 接続試行の間隔
   }
+  
+  server.begin(); // <--- CPサーバーを開始
   Serial.println("WiFi connected");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-  Udp.begin(UDP_PORT);
-  Serial.print("Listening on UDP port ");
-  Serial.println(UDP_PORT);
+  Serial.print("TCP server started on port ");
+  Serial.println(TCP_PORT);
 
   // サーボ初期化処理
   ICS1.begin(1250000);
@@ -109,41 +108,44 @@ void setup() {
 
 // --- メインループ ---
 void loop() {
-  int packetSize = Udp.parsePacket(); //
-  if (packetSize > 0) {
-    char buffer[32];
-    int len = Udp.read(buffer, sizeof(buffer) - 1); //
-    buffer[len] = '\0';
+  WiFiEspClient client = server.available(); // PCからの接続を待つ
 
-    Serial.print("Received packet: ");
-    Serial.println(buffer);
+  if (client) {
+    Serial.println("Client connected.");
+    
+    while (client.connected()) {
+      if (client.available()) {
+        String line = client.readStringUntil('\n'); // コマンドを1行読み込む
+        Serial.print("Received: ");
+        Serial.println(line);
 
-    // 受信データをパース
-    char* command = strtok(buffer, ",");
-    char* value_str = strtok(NULL, ",");
+        // Stringをchar配列に変換してパース
+        char buffer[32];
+        line.toCharArray(buffer, sizeof(buffer));
 
-    if (command != NULL && value_str != NULL) {
-      float value = atof(value_str);
+        char* command = strtok(buffer, ",");
+        char* value_str = strtok(NULL, ",");
 
-      // コマンドに応じて処理を分岐
-      if (strcmp(command, "up") == 0) {
-        move_forward(value);
-      } else if (strcmp(command, "down") == 0) {
-        move_backward(value);
-      } else if (strcmp(command, "right") == 0) {
-        move_right(value);
-      } else if (strcmp(command, "left") == 0) {
-        move_left(value);
-      } else if (strcmp(command, "pick_up") == 0) {
-        pick_up();
-      } else if (strcmp(command, "drop") == 0) {
-        drop();
-      } else {
-        Serial.println("Unknown command");
+        if (command != NULL && value_str != NULL) {
+          float value = atof(value_str);
+
+          // コマンドに応じて処理を分岐・実行
+          if (strcmp(command, "up") == 0) move_forward(value);
+          else if (strcmp(command, "down") == 0) move_backward(value);
+          else if (strcmp(command, "right") == 0) move_right(value);
+          else if (strcmp(command, "left") == 0) move_left(value);
+          else if (strcmp(command, "pick_up") == 0) pick_up();
+          else if (strcmp(command, "drop") == 0) drop();
+          else Serial.println("Unknown command");
+          
+          // --- 修正: 動作完了後にPCへ報告 ---
+          Serial.println("Action complete. Sending 'done'.");
+          client.println("done"); 
+        }
       }
-    } else {
-      Serial.println("Invalid packet format");
     }
+    // クライアントが切断されたらメッセージを表示
+    Serial.println("Client disconnected.");
   }
 }
 
