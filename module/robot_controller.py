@@ -54,8 +54,8 @@ class RobotController:
         distance_cm = distance_mm / 10.0
         self.execute_and_wait(direction, distance_cm)
 
-    def pick_up_ball(self):
-        self.execute_and_wait("pick_up", 0)
+    def pick_ball(self):
+        self.execute_and_wait("pickup", 0)
 
     def drop_ball(self):
         self.execute_and_wait("drop", 0)

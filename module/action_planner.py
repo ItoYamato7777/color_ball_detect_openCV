@@ -213,7 +213,7 @@ class ActionPlanner:
 
         elif self.state == self.State.PICKING_UP_BALL:
             print("State: PICKING_UP_BALL")
-            self.robot_controller.pick_up_ball()
+            self.robot_controller.pick_ball()
             self.balls_collected_count += 1
             
             if self.target_ball:

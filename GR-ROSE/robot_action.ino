@@ -34,7 +34,7 @@ void move_forward(float value);
 void move_backward(float value);
 void move_right(float value);
 void move_left(float value);
-void pick_up();
+void pick();
 void drop();
 
 // --- セットアップ ---
@@ -132,7 +132,7 @@ void loop() {
           else if (strcmp(command, "down") == 0) move_backward(value);
           else if (strcmp(command, "right") == 0) move_right(value);
           else if (strcmp(command, "left") == 0) move_left(value);
-          else if (strcmp(command, "pick_up") == 0) pick_up();
+          else if (strcmp(command, "pick") == 0) pick();
           else if (strcmp(command, "drop") == 0) drop();
           else Serial.println("Unknown command");
           
@@ -231,8 +231,8 @@ void move_left(float value) {
 }
 
 // ボールを拾う
-void pick_up() { //
-  Serial.println("Action: pick_up");
+void pick() { //
+  Serial.println("Action: pick");
   krs_setposition(&C_servo[4], 45);
   krs_setposition(&C_servo[3], 45);
   delay(500);
