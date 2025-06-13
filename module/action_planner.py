@@ -49,7 +49,9 @@ class ActionPlanner:
         # ターゲットをロックするX軸方向の距離 (mm単位)
         self.TARGET_LOCK_DISTANCE_X = 200.0
 
-        # --- 内部状態の初期化 ---
+        self.TARGET_Y_LIMIT = 350.0  # <--- ターゲットにするボールのY座標の最大絶対値 (mm)
+
+        # --- 内部状態 ---
         self.robot_controller = robot_controller
         self.state = self.State.SEARCHING_BALL
         self.target_ball = None
@@ -62,9 +64,11 @@ class ActionPlanner:
         # ターゲットロック機能のための変数
         self.target_locked = False
         self.locked_target_position = None
-        self.locked_target_radius_px = 10 # <--- ロックしたターゲットの描画用半径
+        self.locked_target_radius_px = 0
 
         print("ActionPlanner: Initialized for synchronous control.")
+        print(f"  - Target Y-axis limit: +/- {self.TARGET_Y_LIMIT}mm")
+
 
     def update_world_state(self, robot_pose: dict, balls_info: list):
         """
@@ -76,9 +80,8 @@ class ActionPlanner:
 
     def _find_nearest_ball(self):
         """
-        ロボットの「前方」にあるボールの中から、最も近いものを探します。
+        ロボットの前方、かつY座標の範囲内にある最も近いボールを見つける。
         """
-        # ロボットまたはボールの情報がなければ探索しない
         if not self.robot_pose or not self.balls_info:
             return None
             
@@ -86,30 +89,31 @@ class ActionPlanner:
         robot_x = robot_pos_vec[0, 0]
         robot_y = robot_pos_vec[1, 0]
 
-        # ロボットより前方(X座標が大きい)にあるボールのみを候補リストに入れる
-        forward_balls = []
+        # <--- フィルタリング条件を追加 ---
+        candidate_balls = []
         for ball in self.balls_info:
             if ball.get('world_xyz') is not None:
-                ball_x = ball['world_xyz'][0]
-                if ball_x > robot_x + self.search_X_OFFSET:
-                    forward_balls.append(ball)
+                ball_pos = ball['world_xyz']
+                # 条件1: ロボットより前方にあるか
+                is_forward = ball_pos[0] > robot_x + self.search_X_OFFSET 
+                # 条件2: Y座標が指定範囲内にあるか
+                is_within_y_limit = abs(ball_pos[1]) <= self.TARGET_Y_LIMIT
+                
+                if is_forward and is_within_y_limit:
+                    candidate_balls.append(ball)
         
-        # 前方にボールがなければNoneを返す
-        if not forward_balls:
+        if not candidate_balls:
             return None
 
         # 候補の中から最短距離のボールを見つける
-        nearest_ball = None
-        min_dist = float('inf')
-        for ball in forward_balls:
-            ball_pos = ball['world_xyz']
-            dist = math.sqrt((robot_x - ball_pos[0])**2 + (robot_y - ball_pos[1])**2)
-            if dist < min_dist:
-                min_dist = dist
-                nearest_ball = ball
+        nearest_ball = min(
+            candidate_balls, 
+            key=lambda b: math.sqrt((robot_x - b['world_xyz'][0])**2 + (robot_y - b['world_xyz'][1])**2)
+        )
         
         return nearest_ball
 
+    # <--- 描画のために現在のターゲット情報を返す新しいメソッド ---
     def get_target_info(self):
         """
         main.pyの描画ループに現在のターゲット情報を渡す。
