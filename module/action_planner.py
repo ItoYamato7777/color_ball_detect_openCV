@@ -57,7 +57,7 @@ class ActionPlanner:
         self.robot_pose = None
         self.balls_info = []
 
-        self.search_X_OFFSET = 0 #ロボットより前方にあるボールを選ぶ際のしきい値
+        self.search_X_OFFSET = 20 #ロボットより前方にあるボールを選ぶ際のしきい値
         
         # ターゲットロック機能のための変数
         self.target_locked = False
