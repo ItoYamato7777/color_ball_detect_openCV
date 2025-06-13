@@ -237,12 +237,22 @@ class ActionPlanner:
 
         elif self.state == self.State.PICKING_UP_BALL:
             print("State: PICKING_UP_BALL")
+            # 1. ボールを拾う動作を実行
             self.robot_controller.pick_ball()
+            
+            # pick動作の後に1秒間後退するコマンドを追加
+            print("  - Action: Moving back for 1 second after pickup.")
+            # 1秒間の後退は、10cm = 100mm の移動に相当
+            self.robot_controller.move("down", 50.0) 
+            
+            # 2. ボール収集カウンタを増やす
             self.balls_collected_count += 1
             
+            # 3. 拾ったボールをリストから削除
             if self.target_ball:
                 self.balls_info = [b for b in self.balls_info if b['name'] != self.target_ball['name']]
             
+            # 4. 次の状態に遷移
             if self.balls_collected_count >= self.MAX_BALL_CAPACITY:
                 self.state = self.State.MOVING_TO_GOAL_Y
             else:
