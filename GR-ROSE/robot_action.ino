@@ -183,6 +183,7 @@ void move_right(float value) {
   delay(duration_ms); 
   krs_setposition(&F_servo[1], 0); 
   krs_setposition(&R_servo[1], 0); 
+  delay(10);
   krs_setposition(&F_servo[0], -80);
   krs_setposition(&R_servo[0], -80); 
   delay(500); 
@@ -200,6 +201,7 @@ void move_left(float value) {
   delay(duration_ms); 
   krs_setposition(&F_servo[1], 0); 
   krs_setposition(&R_servo[1], 0); 
+  delay(10);
   krs_setposition(&F_servo[0], 80); 
   krs_setposition(&R_servo[0], 80); 
   delay(500); 
