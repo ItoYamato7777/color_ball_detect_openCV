@@ -34,7 +34,7 @@ class ActionPlanner:
         self.GOAL_POSITION = {'x': 200.0, 'y': 0.0}
         
         # ボールを拾う際の最終停止位置のオフセット (mm単位)
-        self.PICKUP_OFFSET_X = 85.0   # 前後方向のオフセット
+        self.PICKUP_OFFSET_X = 125.0   # 前後方向のオフセット
         self.PICKUP_OFFSET_Y = 0.0    # 左右方向のオフセット
         
         # 座標が合ったとみなす許容誤差 (mm単位)
@@ -47,7 +47,7 @@ class ActionPlanner:
         self.MAX_BALL_CAPACITY = 3
         
         # ターゲットをロックするX軸方向の距離 (mm単位)
-        self.TARGET_LOCK_DISTANCE_X = 100.0
+        self.TARGET_LOCK_DISTANCE_X = 200.0
 
         # --- 内部状態の初期化 ---
         self.robot_controller = robot_controller
