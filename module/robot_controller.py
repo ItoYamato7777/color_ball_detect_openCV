@@ -7,7 +7,7 @@ class RobotController:
     ロボットの物理的な動作を制御するためのクラス。
     UDP通信を使用し、応答がない場合はコマンドを再試行する。
     """
-    def __init__(self, ip_address="192.168.3.109", port=12345, timeout=10.0, retries=5):
+    def __init__(self, ip_address="192.168.3.109", port=12345, timeout=10.0, retries=1):
         """
         RobotControllerを初期化します。
         
