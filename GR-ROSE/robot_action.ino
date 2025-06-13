@@ -181,8 +181,10 @@ void move_right(float value) {
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
-  krs_setposition(&F_servo[1], -60); 
-  krs_setposition(&R_servo[1], -60); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
+  krs_setposition(&F_servo[0], -80);
+  krs_setposition(&R_servo[0], -80); 
   delay(500); 
 }
 void move_left(float value) { 
@@ -196,8 +198,10 @@ void move_left(float value) {
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
-  krs_setposition(&F_servo[1], 60); 
-  krs_setposition(&R_servo[1], 60); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
+  krs_setposition(&F_servo[0], 80); 
+  krs_setposition(&R_servo[0], 80); 
   delay(500); 
 }
 void pick() { 
