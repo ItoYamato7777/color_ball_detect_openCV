@@ -63,37 +63,37 @@ void setup() {
   for(int i = 0; i < 5; i++){
     C_servo[i].attach(ICS1, i+1);
     C_servo[i].setStretch(30);
-    delay(1);
+    delay(5);
     C_servo[i].setSpeed(60);
-    delay(1);
+    delay(5);
     krs_setposition(&C_servo[i], 45);
-    delay(1);
+    delay(5);
   }
   // 前輪セットアップ
   for(int i = 0; i < 2; i++){
     F_servo[i].attach(ICS3, i+1);
     F_servo[i].setStretch(30);
-    delay(1);
+    delay(5);
     F_servo[i].setSpeed(60);
-    delay(1);
+    delay(5);
     krs_setposition(&F_servo[i], 0);
   }
   // 後輪セットアップ
   for(int i = 0; i < 2; i++){
     R_servo[i].attach(ICS4, i+1);
     R_servo[i].setStretch(30);
-    delay(1);
+    delay(5);
     R_servo[i].setSpeed(60);
-    delay(1);
+    delay(5);
     krs_setposition(&R_servo[i], 0);
-    delay(1);
+    delay(5);
   }
   // かごセットアップ
   R_servo[2].attach(ICS4, 2+1);
   R_servo[2].setStretch(30);
-  delay(1);
+  delay(5);
   R_servo[2].setSpeed(30);
-  delay(1);
+  delay(5);
   krs_setposition(&R_servo[2], -2);
 
   delay(1000);
@@ -135,74 +135,86 @@ void loop() {
 }
 
 // --- 各動作の関数  ---
-void krs_setposition(IcsServo* servo, float angle){
-  int pos = map(angle, SERVO_MIN, SERVO_MAX, KRS_MIN, KRS_MAX);
-  if(pos >= KRS_MIN && pos <= KRS_MAX){
-    servo->setPosition(pos);
-    delay(1); // 1ms程度の短いdelayは問題になりにくい
-  }
+void krs_setposition(IcsServo* servo, float angle){ 
+  int pos = map(angle, SERVO_MIN, SERVO_MAX, KRS_MIN, KRS_MAX); 
+  if(pos >= KRS_MIN && pos <= KRS_MAX){ servo->setPosition(pos); delay(1); 
+  } 
 }
-
-void move_forward(float value) {
-  int duration_ms = value * 100;
-  Serial.print("Action: move_forward for "); Serial.print(duration_ms); Serial.println(" ms");
-  krs_setposition(&F_servo[0], 0); krs_setposition(&R_servo[0], 0);
-  non_blocking_delay(100);
-  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
-  non_blocking_delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
+void move_forward(float value) { 
+  int duration_ms = value * 100; 
+  Serial.print("Action: move_forward for "); 
+  Serial.print(duration_ms); 
+  Serial.println(" ms"); 
+  krs_setposition(&F_servo[0], 0); 
+  krs_setposition(&R_servo[0], 0); 
+  delay(100); 
+  krs_setposition(&F_servo[1], MOVE_SPEED); 
+  krs_setposition(&R_servo[1], MOVE_SPEED); 
+  delay(duration_ms); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
 }
-
-void move_backward(float value) {
-  int duration_ms = value * 100;
-  Serial.print("Action: move_backward for "); Serial.print(duration_ms); Serial.println(" ms");
-  krs_setposition(&F_servo[0], 0); krs_setposition(&R_servo[0], 0);
-  non_blocking_delay(100);
-  krs_setposition(&F_servo[1], -MOVE_SPEED); krs_setposition(&R_servo[1], -MOVE_SPEED);
-  non_blocking_delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
+void move_backward(float value) { 
+  int duration_ms = value * 100; 
+  Serial.print("Action: move_backward for "); 
+  Serial.print(duration_ms); 
+  Serial.println(" ms"); 
+  krs_setposition(&F_servo[0], 0); 
+  krs_setposition(&R_servo[0], 0); 
+  delay(100); 
+  krs_setposition(&F_servo[1], -MOVE_SPEED); 
+  krs_setposition(&R_servo[1], -MOVE_SPEED); 
+  delay(duration_ms); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
 }
-
-void move_right(float value) {
-  int duration_ms = value * 100;
-  Serial.print("Action: move_right for "); Serial.print(duration_ms); Serial.println(" ms");
-  krs_setposition(&F_servo[0], -90); krs_setposition(&R_servo[0], -90);
-  non_blocking_delay(200);
-  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
-  non_blocking_delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
+void move_right(float value) { 
+  int duration_ms = value * 100; 
+  Serial.print("Action: move_right for "); 
+  Serial.print(duration_ms); 
+  Serial.println(" ms"); 
+  krs_setposition(&F_servo[0], -90);
+  krs_setposition(&R_servo[0], -90); 
+  delay(200); 
+  krs_setposition(&F_servo[1], MOVE_SPEED); 
+  krs_setposition(&R_servo[1], MOVE_SPEED); 
+  delay(duration_ms); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
 }
-
-void move_left(float value) {
-  int duration_ms = value * 100;
-  Serial.print("Action: move_left for "); Serial.print(duration_ms); Serial.println(" ms");
-  krs_setposition(&F_servo[0], 90); krs_setposition(&R_servo[0], 90);
-  non_blocking_delay(200);
-  krs_setposition(&F_servo[1], MOVE_SPEED); krs_setposition(&R_servo[1], MOVE_SPEED);
-  non_blocking_delay(duration_ms);
-  krs_setposition(&F_servo[1], 0); krs_setposition(&R_servo[1], 0);
+void move_left(float value) { 
+  int duration_ms = value * 100; 
+  Serial.print("Action: move_left for "); 
+  Serial.print(duration_ms); 
+  Serial.println(" ms"); krs_setposition(&F_servo[0], 90); 
+  krs_setposition(&R_servo[0], 90); 
+  delay(200); 
+  krs_setposition(&F_servo[1], MOVE_SPEED); 
+  krs_setposition(&R_servo[1], MOVE_SPEED); 
+  delay(duration_ms); 
+  krs_setposition(&F_servo[1], 0); 
+  krs_setposition(&R_servo[1], 0); 
 }
-
-void pick() {
-  Serial.println("Action: pick");
-  krs_setposition(&C_servo[4], 45); krs_setposition(&C_servo[3], 45);
-  non_blocking_delay(500);
-  krs_setposition(&C_servo[4], 0);
-  non_blocking_delay(500);
-  krs_setposition(&C_servo[3], 0);
-  non_blocking_delay(500);
-  krs_setposition(&C_servo[4], 90);
-  non_blocking_delay(2000);
-  krs_setposition(&C_servo[4], 45);
-  non_blocking_delay(500);
-  krs_setposition(&C_servo[3], 45);
-  non_blocking_delay(500);
+void pick() { 
+  Serial.println("Action: pick"); 
+  krs_setposition(&C_servo[4], 45); 
+  krs_setposition(&C_servo[3], 45); 
+  delay(500); 
+  krs_setposition(&C_servo[4], 0); 
+  delay(500); 
+  krs_setposition(&C_servo[3], 0); 
+  delay(500); 
+  krs_setposition(&C_servo[4], 90); 
+  delay(2000); 
+  krs_setposition(&C_servo[4], 45); 
+  delay(500); 
+  krs_setposition(&C_servo[3], 45); 
+  delay(500); 
 }
-
-void drop() {
-  Serial.println("Action: drop");
-  krs_setposition(&R_servo[2], 90);
-  non_blocking_delay(2000);
-  krs_setposition(&R_servo[2], -2);
-  non_blocking_delay(1000);
+void drop() { 
+  Serial.println("Action: drop"); 
+  krs_setposition(&R_servo[2], 90); 
+  delay(2000); 
+  krs_setposition(&R_servo[2], -2); 
+  delay(1000); 
 }
