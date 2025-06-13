@@ -1,12 +1,12 @@
-// robot_action.ino (ブロッキング対策版)
+// robot_action.ino (UDP版)
 
 #include <Arduino.h>
 #include <ICS.h>
 #include <WiFiEsp.h>
-#include <WiFiEspServer.h>
+#include <WiFiEspUdp.h> // ★★★ TCPからUDPライブラリに変更 ★★★
 
 // --- 定数定義 ---
-#define TCP_PORT 12345
+#define UDP_PORT 12345 // ポート番号はPC側と合わせる
 #define ESP_BAUD 115200
 #define ESP_SERIAL Serial6
 char ssid[] = "KXR-wifi_2.4G";
@@ -19,7 +19,9 @@ char pass[] = "zutt0issy0";
 #define MOVE_SPEED 100
 
 // --- グローバル変数 ---
-WiFiEspServer server(TCP_PORT);
+WiFiEspUdp Udp; // ★★★ UDPオブジェクトを作成 ★★★
+char packetBuffer[64]; // 受信データ用バッファ
+
 IcsController ICS1(Serial1);
 IcsController ICS3(Serial3);
 IcsController ICS4(Serial4);
@@ -28,7 +30,6 @@ IcsServo F_servo[2];
 IcsServo R_servo[3];
 
 // --- プロトタイプ宣言 ---
-void non_blocking_delay(unsigned long ms); // ★★★ 新しい遅延関数 ★★★
 void krs_setposition(IcsServo* servo, float angle);
 void move_forward(float value);
 void move_backward(float value);
@@ -42,21 +43,17 @@ void setup() {
   Serial.begin(9600);
   ESP_SERIAL.begin(ESP_BAUD);
   WiFi.init(&ESP_SERIAL);
-
   while (WiFi.status() != WL_CONNECTED) {
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, pass);
-    delay(5000);
+    Serial.print("Connecting to "); Serial.println(ssid);
+    WiFi.begin(ssid, pass); delay(5000);
   }
   
-  server.begin();
-  Serial.println("WiFi connected");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("TCP server started on port ");
-  Serial.println(TCP_PORT);
-
+  // ★★★ UDPリスニングを開始 ★★★
+  Udp.begin(UDP_PORT); 
+  
+  Serial.println("WiFi connected"); Serial.print("IP address: "); Serial.println(WiFi.localIP());
+  Serial.print("UDP listener started on port "); Serial.println(UDP_PORT);
+  
   // サーボ初期化処理
   ICS1.begin(1250000);
   ICS3.begin(1250000);
@@ -103,61 +100,53 @@ void setup() {
   Serial.println("Robot setup complete. Waiting for new connection...");
 }
 
-// --- メインループ ---
+// --- メインループ (★★★ UDP用にロジックを全面変更 ★★★) ---
 void loop() {
-  WiFiEspClient client = server.available();
-  if (client) {
-    Serial.println("Client connected. Entering command loop...");
-    char recv_buffer[64];
-    byte buffer_index = 0;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        if (c == '\n') {
-          recv_buffer[buffer_index] = '\0';
-          Serial.print("Received: "); Serial.println(recv_buffer);
-          char* command = strtok(recv_buffer, ",");
-          char* value_str = strtok(NULL, ",");
-          if (command != NULL && value_str != NULL) {
-            float value = atof(value_str);
-            if (strcmp(command, "up") == 0) move_forward(value);
-            else if (strcmp(command, "down") == 0) move_backward(value);
-            else if (strcmp(command, "right") == 0) move_right(value);
-            else if (strcmp(command, "left") == 0) move_left(value);
-            else if (strcmp(command, "pick") == 0) pick();
-            else if (strcmp(command, "drop") == 0) drop();
-            else Serial.println("Unknown command");
-            Serial.println("Action complete. Sending 'done'.");
-            client.println("done");
-          } else {
-            Serial.println("Invalid packet format. Ignoring.");
-            client.println("error: invalid packet");
-          }
-          buffer_index = 0;
-        } else if (c >= ' ') {
-          if (buffer_index < sizeof(recv_buffer) - 1) {
-            recv_buffer[buffer_index++] = c;
-          }
-        }
-      }
+  // 受信したUDPパケットがあるか確認
+  int packetSize = Udp.parsePacket();
+  
+  if (packetSize) {
+    // 送信元のIPアドレスとポートを取得
+    IPAddress remoteIp = Udp.remoteIP();
+    unsigned int remotePort = Udp.remotePort();
+    
+    // パケットデータをバッファに読み込む
+    int len = Udp.read(packetBuffer, sizeof(packetBuffer) - 1);
+    if (len > 0) {
+      packetBuffer[len] = '\0'; // C言語の文字列として扱えるようにヌル終端
     }
-    client.stop();
-    Serial.println("Client disconnected. Waiting for new connection...");
+    
+    Serial.print("Received packet from ");
+    Serial.print(remoteIp);
+    Serial.print(":");
+    Serial.print(remotePort);
+    Serial.print(" - ");
+    Serial.println(packetBuffer);
+
+    // コマンドを解析して実行
+    char* command = strtok(packetBuffer, ",");
+    char* value_str = strtok(NULL, ",");
+    
+    if (command != NULL && value_str != NULL) {
+      float value = atof(value_str);
+      if (strcmp(command, "up") == 0) move_forward(value);
+      else if (strcmp(command, "down") == 0) move_backward(value);
+      else if (strcmp(command, "right") == 0) move_right(value);
+      else if (strcmp(command, "left") == 0) move_left(value);
+      else if (strcmp(command, "pick") == 0) pick();
+      else if (strcmp(command, "drop") == 0) drop();
+      else Serial.println("Unknown command");
+      
+      // 処理完了をPCに通知
+      Serial.println("Action complete. Sending 'done'.");
+      Udp.beginPacket(remoteIp, remotePort); // 応答の宛先を設定
+      Udp.write("done\n");
+      Udp.endPacket();
+    }
   }
 }
 
-// --- 各動作の関数 (★★★ delay() を non_blocking_delay() に置換 ★★★) ---
-
-// ネットワークをブロックしない遅延関数
-void non_blocking_delay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {
-    // このループは非常に高速に回るため、実質的なCPUの専有時間は短く、
-    // WiFiライブラリがバックグラウンドで動作する隙を与えることができます。
-    // より丁寧には、ここにWiFiのメンテナンス関数を置くが、これだけでも改善が見込める。
-  }
-}
-
+// --- 各動作の関数  ---
 void krs_setposition(IcsServo* servo, float angle){
   int pos = map(angle, SERVO_MIN, SERVO_MAX, KRS_MIN, KRS_MAX);
   if(pos >= KRS_MIN && pos <= KRS_MAX){
