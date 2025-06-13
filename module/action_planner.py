@@ -31,7 +31,7 @@ class ActionPlanner:
         # --- 制御用パラメータ・定数 (ここで動作を微調整します) ---
 
         # ゴール（カゴ）の座標 (mm単位)
-        self.GOAL_POSITION = {'x': 135.0, 'y': 0.0}
+        self.GOAL_POSITION = {'x': 127.5, 'y': 0.0}
         
         # ボールを拾う際の最終停止位置のオフセット (mm単位)
         self.PICKUP_OFFSET_X = 150.0   # 前後方向のオフセット
