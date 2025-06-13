@@ -34,7 +34,7 @@ class ActionPlanner:
         self.GOAL_POSITION = {'x': 120.0, 'y': 0.0}
         
         # ボールを拾う際の最終停止位置のオフセット (mm単位)
-        self.PICKUP_OFFSET_X = 150.0   # 前後方向のオフセット
+        self.PICKUP_OFFSET_X = 165.0   # 前後方向のオフセット
         self.PICKUP_OFFSET_Y = 0.0    # 左右方向のオフセット
         
         # 座標が合ったとみなす許容誤差 (mm単位)
@@ -240,10 +240,10 @@ class ActionPlanner:
             # 1. ボールを拾う動作を実行
             self.robot_controller.pick_ball()
             
-            # pick動作の後に1秒間後退するコマンドを追加
+            # ロボットのx座標が300以上の場合、pick動作の後に1秒間後退するコマンドを追加
             print("  - Action: Moving back for 1 second after pickup.")
-            # 1秒間の後退は、10cm = 100mm の移動に相当
-            self.robot_controller.move("down", 50.0) 
+            if(robot_x > 300):
+                self.robot_controller.move("down", 50.0) 
             
             # 2. ボール収集カウンタを増やす
             self.balls_collected_count += 1
