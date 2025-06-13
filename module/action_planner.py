@@ -243,7 +243,7 @@ class ActionPlanner:
             # pick動作の後に1秒間後退するコマンドを追加
             print("  - Action: Moving back for 1 second after pickup.")
             # 1秒間の後退は、10cm = 100mm の移動に相当
-            self.robot_controller.move("down", 50.0) 
+            self.robot_controller.move("down", 20.0) 
             
             # 2. ボール収集カウンタを増やす
             self.balls_collected_count += 1
