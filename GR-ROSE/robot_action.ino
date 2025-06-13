@@ -1,12 +1,12 @@
-// robot_action.ino (UDP版)
+// robot_action.ino (コンパイルエラー修正版)
 
 #include <Arduino.h>
 #include <ICS.h>
 #include <WiFiEsp.h>
-#include <WiFiEspUdp.h> // ★★★ TCPからUDPライブラリに変更 ★★★
+#include <WiFiEspUdp.h> // ★★★ 正しいヘッダ名 ★★★
 
 // --- 定数定義 ---
-#define UDP_PORT 12345 // ポート番号はPC側と合わせる
+#define UDP_PORT 12345
 #define ESP_BAUD 115200
 #define ESP_SERIAL Serial6
 char ssid[] = "KXR-wifi_2.4G";
@@ -19,8 +19,8 @@ char pass[] = "zutt0issy0";
 #define MOVE_SPEED 100
 
 // --- グローバル変数 ---
-WiFiEspUdp Udp; // ★★★ UDPオブジェクトを作成 ★★★
-char packetBuffer[64]; // 受信データ用バッファ
+WiFiEspUDP Udp; // ★★★ クラス名を WiFiEspUDP に修正 ★★★
+char packetBuffer[64];
 
 IcsController ICS1(Serial1);
 IcsController ICS3(Serial3);
@@ -28,6 +28,7 @@ IcsController ICS4(Serial4);
 IcsServo C_servo[5];
 IcsServo F_servo[2];
 IcsServo R_servo[3];
+
 
 // --- プロトタイプ宣言 ---
 void krs_setposition(IcsServo* servo, float angle);
@@ -48,13 +49,12 @@ void setup() {
     WiFi.begin(ssid, pass); delay(5000);
   }
   
-  // ★★★ UDPリスニングを開始 ★★★
   Udp.begin(UDP_PORT); 
   
   Serial.println("WiFi connected"); Serial.print("IP address: "); Serial.println(WiFi.localIP());
   Serial.print("UDP listener started on port "); Serial.println(UDP_PORT);
   
-  // サーボ初期化処理
+    // サーボ初期化処理
   ICS1.begin(1250000);
   ICS3.begin(1250000);
   ICS4.begin(1250000);
@@ -100,33 +100,22 @@ void setup() {
   Serial.println("Robot setup complete. Waiting for new connection...");
 }
 
-// --- メインループ (★★★ UDP用にロジックを全面変更 ★★★) ---
+// --- メインループ ---
 void loop() {
-  // 受信したUDPパケットがあるか確認
   int packetSize = Udp.parsePacket();
-  
   if (packetSize) {
-    // 送信元のIPアドレスとポートを取得
     IPAddress remoteIp = Udp.remoteIP();
     unsigned int remotePort = Udp.remotePort();
-    
-    // パケットデータをバッファに読み込む
     int len = Udp.read(packetBuffer, sizeof(packetBuffer) - 1);
     if (len > 0) {
-      packetBuffer[len] = '\0'; // C言語の文字列として扱えるようにヌル終端
+      packetBuffer[len] = '\0';
     }
-    
-    Serial.print("Received packet from ");
-    Serial.print(remoteIp);
-    Serial.print(":");
-    Serial.print(remotePort);
-    Serial.print(" - ");
-    Serial.println(packetBuffer);
+    Serial.print("Received packet from "); Serial.print(remoteIp);
+    Serial.print(":"); Serial.print(remotePort);
+    Serial.print(" - "); Serial.println(packetBuffer);
 
-    // コマンドを解析して実行
     char* command = strtok(packetBuffer, ",");
     char* value_str = strtok(NULL, ",");
-    
     if (command != NULL && value_str != NULL) {
       float value = atof(value_str);
       if (strcmp(command, "up") == 0) move_forward(value);
@@ -137,9 +126,8 @@ void loop() {
       else if (strcmp(command, "drop") == 0) drop();
       else Serial.println("Unknown command");
       
-      // 処理完了をPCに通知
       Serial.println("Action complete. Sending 'done'.");
-      Udp.beginPacket(remoteIp, remotePort); // 応答の宛先を設定
+      Udp.beginPacket(remoteIp, remotePort);
       Udp.write("done\n");
       Udp.endPacket();
     }
