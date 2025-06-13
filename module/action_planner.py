@@ -236,6 +236,7 @@ class ActionPlanner:
                 self.state = self.State.DROPPING_BALL
 
         elif self.state == self.State.PICKING_UP_BALL:
+            robot_x = current_robot_pos_vec[0, 0]
             print("State: PICKING_UP_BALL")
             # 1. ボールを拾う動作を実行
             self.robot_controller.pick_ball()
