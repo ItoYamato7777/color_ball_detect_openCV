@@ -149,7 +149,7 @@ void move_forward(float value) {
   Serial.println(" ms"); 
   krs_setposition(&F_servo[0], 0); 
   krs_setposition(&R_servo[0], 0); 
-  delay(250); 
+  delay(500); 
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
@@ -163,7 +163,7 @@ void move_backward(float value) {
   Serial.println(" ms"); 
   krs_setposition(&F_servo[0], 0); 
   krs_setposition(&R_servo[0], 0); 
-  delay(250); 
+  delay(500); 
   krs_setposition(&F_servo[1], -MOVE_SPEED); 
   krs_setposition(&R_servo[1], -MOVE_SPEED); 
   delay(duration_ms); 
@@ -177,7 +177,7 @@ void move_right(float value) {
   Serial.println(" ms"); 
   krs_setposition(&F_servo[0], -90);
   krs_setposition(&R_servo[0], -90); 
-  delay(250); 
+  delay(500); 
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
@@ -190,7 +190,7 @@ void move_left(float value) {
   Serial.print(duration_ms); 
   Serial.println(" ms"); krs_setposition(&F_servo[0], 90); 
   krs_setposition(&R_servo[0], 90); 
-  delay(250); 
+  delay(500); 
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
