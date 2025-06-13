@@ -37,8 +37,8 @@ COLOR_RANGES_HSV = {
 COLOR_BGR_DRAW = {'red': (0, 0, 255), 'blue': (255, 0, 0), 'green': (0, 255, 0)}
 MORPH_KERNEL = np.ones((3, 3), np.uint8)
 MIN_CONTOUR_AREA_BALL = 100
-MIN_BALL_RADIUS = 14 # 最小検出半径（ピクセル単位）
-MIN_BALL_CIRCULARITY = 0.7
+MIN_BALL_RADIUS = 13 # 最小検出半径（ピクセル単位）
+MIN_BALL_CIRCULARITY = 0.65
 BALL_RADIUS_WORLD_MM = 55.0
 
 

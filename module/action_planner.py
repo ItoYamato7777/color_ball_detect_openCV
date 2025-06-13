@@ -31,7 +31,7 @@ class ActionPlanner:
         # --- 制御用パラメータ・定数 (ここで動作を微調整します) ---
 
         # ゴール（カゴ）の座標 (mm単位)
-        self.GOAL_POSITION = {'x': 120.0, 'y': 0.0}
+        self.GOAL_POSITION = {'x': 127.5, 'y': 0.0}
         
         # ボールを拾う際の最終停止位置のオフセット (mm単位)
         self.PICKUP_OFFSET_X = 165.0   # 前後方向のオフセット
@@ -243,7 +243,7 @@ class ActionPlanner:
             # ロボットのx座標が300以上の場合、pick動作の後に1秒間後退するコマンドを追加
             print("  - Action: Moving back for 1 second after pickup.")
             if(robot_x > 300):
-                self.robot_controller.move("down", 50.0) 
+                self.robot_controller.move("down", 20.0) 
             
             # 2. ボール収集カウンタを増やす
             self.balls_collected_count += 1
