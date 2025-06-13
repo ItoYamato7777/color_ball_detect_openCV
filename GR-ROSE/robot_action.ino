@@ -181,21 +181,24 @@ void move_right(float value) {
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
-  krs_setposition(&F_servo[1], 0); 
-  krs_setposition(&R_servo[1], 0); 
+  krs_setposition(&F_servo[1], -60); 
+  krs_setposition(&R_servo[1], -60); 
+  delay(500); 
 }
 void move_left(float value) { 
   int duration_ms = value * 250; 
   Serial.print("Action: move_left for "); 
   Serial.print(duration_ms); 
-  Serial.println(" ms"); krs_setposition(&F_servo[0], 90); 
+  Serial.println(" ms"); 
+  krs_setposition(&F_servo[0], 90); 
   krs_setposition(&R_servo[0], 90); 
   delay(500); 
   krs_setposition(&F_servo[1], MOVE_SPEED); 
   krs_setposition(&R_servo[1], MOVE_SPEED); 
   delay(duration_ms); 
-  krs_setposition(&F_servo[1], 0); 
-  krs_setposition(&R_servo[1], 0); 
+  krs_setposition(&F_servo[1], 60); 
+  krs_setposition(&R_servo[1], 60); 
+  delay(500); 
 }
 void pick() { 
   Serial.println("Action: pick"); 
