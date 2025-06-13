@@ -56,6 +56,8 @@ class ActionPlanner:
         self.balls_collected_count = 0
         self.robot_pose = None
         self.balls_info = []
+
+        self.search_X_OFFSET = 0 #ロボットより前方にあるボールを選ぶ際のしきい値
         
         # ターゲットロック機能のための変数
         self.target_locked = False
@@ -89,7 +91,7 @@ class ActionPlanner:
         for ball in self.balls_info:
             if ball.get('world_xyz') is not None:
                 ball_x = ball['world_xyz'][0]
-                if ball_x > robot_x:
+                if ball_x > robot_x + self.search_X_OFFSET:
                     forward_balls.append(ball)
         
         # 前方にボールがなければNoneを返す
