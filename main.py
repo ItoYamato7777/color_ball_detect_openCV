@@ -38,6 +38,7 @@ COLOR_BGR_DRAW = {'red': (0, 0, 255), 'blue': (255, 0, 0), 'green': (0, 255, 0)}
 MORPH_KERNEL = np.ones((5, 5), np.uint8)
 MIN_CONTOUR_AREA_BALL = 100
 MIN_BALL_RADIUS = 15
+MIN_BALL_CIRCULARITY = 0.85
 BALL_RADIUS_WORLD_MM = 55.0
 
 
@@ -108,7 +109,8 @@ class VisionSystem:
         )
         self.color_ball_detector = ColorBallDetector(
             color_ranges_hsv=COLOR_RANGES_HSV, color_bgr_draw=COLOR_BGR_DRAW,
-            morph_kernel=MORPH_KERNEL, min_contour_area=MIN_CONTOUR_AREA_BALL, min_radius=MIN_BALL_RADIUS
+            morph_kernel=MORPH_KERNEL, min_contour_area=MIN_CONTOUR_AREA_BALL, min_radius=MIN_BALL_RADIUS,
+            min_circularity=MIN_BALL_CIRCULARITY
         )
         self.ball_world_translator = BallWorldTranslator(
             mtx=self.mtx_calib, dist=self.dist_calib, ball_radius_world=BALL_RADIUS_WORLD_MM
